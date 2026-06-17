@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(lsmps3d_core
+    src/core/particle_set.cpp
     src/io/logger.cpp
 )
 
@@ -41,3 +42,14 @@ target_link_libraries(smoke_test
 )
 
 add_test(NAME smoke_test COMMAND smoke_test)
+
+add_executable(core_data_test
+    tests/core_data_test.cpp
+)
+
+target_link_libraries(core_data_test
+    PRIVATE
+        lsmps3d_core
+)
+
+add_test(NAME core_data_test COMMAND core_data_test)

@@ -241,8 +241,6 @@ ParticleSet
     density[N]
     type[N]
     fluid_state[N]
-    mass[N]
-    volume[N]
     neighbor_list[N]
 ```
 
