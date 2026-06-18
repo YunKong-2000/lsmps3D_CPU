@@ -8,10 +8,10 @@ enum class ParticleType {
 };
 
 enum class FluidParticleState {
-    Internal,
-    FreeSurface,
-    NearFreeSurface,
-    Splash,
+    Internal = 0,
+    NearFreeSurface = 1,
+    FreeSurface = 2,
+    Splash = 3,
 };
 
 }  // namespace lsmps

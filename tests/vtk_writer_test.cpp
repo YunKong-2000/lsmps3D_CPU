@@ -56,7 +56,7 @@ int main() {
     assert(contains(output, "VECTORS velocity double\n"));
     assert(contains(output, "SCALARS pressure double 1\n"));
     assert(contains(output, "SCALARS particle_type int 1\nLOOKUP_TABLE default\n0\n1\n"));
-    assert(contains(output, "SCALARS fluid_state int 1\nLOOKUP_TABLE default\n1\n0\n"));
+    assert(contains(output, "SCALARS fluid_state int 1\nLOOKUP_TABLE default\n2\n0\n"));
     assert(contains(output, "SCALARS neighbor_count int 1\nLOOKUP_TABLE default\n12\n8\n"));
     assert(contains(output, "SCALARS fluid_neighbor_count int 1\nLOOKUP_TABLE default\n9\n5\n"));
     assert(contains(output, "SCALARS wall_neighbor_count int 1\nLOOKUP_TABLE default\n3\n3\n"));

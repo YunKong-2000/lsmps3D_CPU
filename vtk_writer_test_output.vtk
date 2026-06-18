@@ -1,0 +1,45 @@
+# vtk DataFile Version 3.0
+LSMPS 3D particle data
+ASCII
+DATASET POLYDATA
+POINTS 2 double
+0 0 0
+1 0 0
+VERTICES 2 4
+1 0
+1 1
+POINT_DATA 2
+VECTORS velocity double
+1 0 0
+0 1 0
+SCALARS pressure double 1
+LOOKUP_TABLE default
+10
+20
+SCALARS particle_type int 1
+LOOKUP_TABLE default
+0
+1
+SCALARS fluid_state int 1
+LOOKUP_TABLE default
+2
+0
+SCALARS neighbor_count int 1
+LOOKUP_TABLE default
+12
+8
+SCALARS fluid_neighbor_count int 1
+LOOKUP_TABLE default
+9
+5
+SCALARS wall_neighbor_count int 1
+LOOKUP_TABLE default
+3
+3
+SCALARS diagnostic_scalar double 1
+LOOKUP_TABLE default
+0.5
+1.5
+VECTORS diagnostic_vector double
+0 0 1
+1 1 0

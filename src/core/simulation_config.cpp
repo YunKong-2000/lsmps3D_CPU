@@ -57,6 +57,36 @@ std::vector<std::string> SimulationConfig::validate() const {
     if (free_surface.number_density_ratio <= 0.0 || free_surface.number_density_ratio > 1.0) {
         errors.push_back("free_surface.number_density_ratio must be in (0, 1]");
     }
+    if (free_surface.screen_radius_factor <= 0.0) {
+        errors.push_back("free_surface.screen_radius_factor must be positive");
+    }
+    if (free_surface.wall_patch_radius_factor <= 0.0) {
+        errors.push_back("free_surface.wall_patch_radius_factor must be positive");
+    }
+    if (free_surface.particle_radius_factor <= 0.0) {
+        errors.push_back("free_surface.particle_radius_factor must be positive");
+    }
+    if (free_surface.open_threshold < 0.0 || free_surface.open_threshold > 1.0) {
+        errors.push_back("free_surface.open_threshold must be in [0, 1]");
+    }
+    if (free_surface.cone_angle_degrees <= 0.0 || free_surface.cone_angle_degrees >= 180.0) {
+        errors.push_back("free_surface.cone_angle_degrees must be in (0, 180)");
+    }
+    if (free_surface.cone_threshold < 0.0 || free_surface.cone_threshold > 1.0) {
+        errors.push_back("free_surface.cone_threshold must be in [0, 1]");
+    }
+    if (free_surface.min_cone_accessible_ratio < 0.0 || free_surface.min_cone_accessible_ratio > 1.0) {
+        errors.push_back("free_surface.min_cone_accessible_ratio must be in [0, 1]");
+    }
+    if (free_surface.cubed_sphere_q == 0) {
+        errors.push_back("free_surface.cubed_sphere_q must be positive");
+    }
+    if (free_surface.splash_open_threshold < 0.0 || free_surface.splash_open_threshold > 1.0) {
+        errors.push_back("free_surface.splash_open_threshold must be in [0, 1]");
+    }
+    if (free_surface.near_surface_distance_factor <= 0.0) {
+        errors.push_back("free_surface.near_surface_distance_factor must be positive");
+    }
 
     if (linear_solver.max_iterations == 0) {
         errors.push_back("linear_solver.max_iterations must be positive");

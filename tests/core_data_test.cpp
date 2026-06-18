@@ -16,7 +16,7 @@ int main() {
         100.0,
         1000.0);
 
-    const std::size_t wall = particles.addWallParticle({0.0, 0.0, 0.0});
+    const std::size_t wall = particles.addWallParticle({0.0, 0.0, 0.0}, {}, 0.0, 0.0, {0.0, 1.0, 0.0});
 
     assert(fluid == 0);
     assert(wall == 1);
@@ -25,6 +25,7 @@ int main() {
     assert(particles.isWall(wall));
     assert(particles.types()[fluid] == lsmps::ParticleType::Fluid);
     assert(particles.types()[wall] == lsmps::ParticleType::Wall);
+    assert(particles.wallNormals()[wall].y == 1.0);
     assert(particles.fluidStates()[fluid] == lsmps::FluidParticleState::FreeSurface);
     assert(particles.positions()[fluid].x == 1.0);
     assert(particles.velocities()[fluid].z == 0.3);

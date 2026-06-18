@@ -32,6 +32,17 @@ struct FreeSurfaceConfig {
     double neighbor_count_ratio = 0.85;
     double number_density_ratio = 0.90;
     std::size_t near_surface_layers = 1;
+    double screen_radius_factor = 3.1;
+    double wall_patch_radius_factor = 0.85;
+    double particle_radius_factor = 0.5;
+    double open_threshold = 0.18;
+    double cone_angle_degrees = 45.0;
+    double cone_threshold = 0.62;
+    double min_cone_accessible_ratio = 0.40;
+    std::size_t cubed_sphere_q = 8;
+    std::size_t splash_max_fluid_neighbors = 4;
+    double splash_open_threshold = 0.75;
+    double near_surface_distance_factor = 1.5;
 };
 
 struct LinearSolverConfig {

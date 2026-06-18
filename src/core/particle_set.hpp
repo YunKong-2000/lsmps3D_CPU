@@ -21,7 +21,8 @@ public:
         const Vector3& velocity = {},
         double pressure = 0.0,
         double density = 0.0,
-        FluidParticleState fluid_state = FluidParticleState::Internal);
+        FluidParticleState fluid_state = FluidParticleState::Internal,
+        const Vector3& wall_normal = {});
 
     std::size_t addFluidParticle(
         const Vector3& position,
@@ -34,7 +35,8 @@ public:
         const Vector3& position,
         const Vector3& velocity = {},
         double pressure = 0.0,
-        double density = 0.0);
+        double density = 0.0,
+        const Vector3& wall_normal = {});
 
     const std::vector<Vector3>& positions() const noexcept;
     std::vector<Vector3>& positions() noexcept;
@@ -53,6 +55,9 @@ public:
 
     const std::vector<FluidParticleState>& fluidStates() const noexcept;
     std::vector<FluidParticleState>& fluidStates() noexcept;
+
+    const std::vector<Vector3>& wallNormals() const noexcept;
+    std::vector<Vector3>& wallNormals() noexcept;
 
     const std::vector<std::size_t>& neighborCounts() const noexcept;
     std::vector<std::size_t>& neighborCounts() noexcept;
@@ -73,6 +78,7 @@ private:
     std::vector<double> densities_;
     std::vector<ParticleType> types_;
     std::vector<FluidParticleState> fluid_states_;
+    std::vector<Vector3> wall_normals_;
     std::vector<std::size_t> neighbor_counts_;
     std::vector<std::size_t> fluid_neighbor_counts_;
     std::vector<std::size_t> wall_neighbor_counts_;

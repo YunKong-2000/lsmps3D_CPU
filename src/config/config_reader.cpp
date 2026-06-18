@@ -134,6 +134,28 @@ void applyFreeSurfaceConfig(FreeSurfaceConfig& config, const std::string& key, c
         config.number_density_ratio = parseDouble(name, value);
     } else if (key == "near_surface_layers") {
         config.near_surface_layers = parseSize(name, value);
+    } else if (key == "screen_radius_factor") {
+        config.screen_radius_factor = parseDouble(name, value);
+    } else if (key == "wall_patch_radius_factor") {
+        config.wall_patch_radius_factor = parseDouble(name, value);
+    } else if (key == "particle_radius_factor") {
+        config.particle_radius_factor = parseDouble(name, value);
+    } else if (key == "open_threshold") {
+        config.open_threshold = parseDouble(name, value);
+    } else if (key == "cone_angle_degrees") {
+        config.cone_angle_degrees = parseDouble(name, value);
+    } else if (key == "cone_threshold") {
+        config.cone_threshold = parseDouble(name, value);
+    } else if (key == "min_cone_accessible_ratio") {
+        config.min_cone_accessible_ratio = parseDouble(name, value);
+    } else if (key == "cubed_sphere_q") {
+        config.cubed_sphere_q = parseSize(name, value);
+    } else if (key == "splash_max_fluid_neighbors") {
+        config.splash_max_fluid_neighbors = parseSize(name, value);
+    } else if (key == "splash_open_threshold") {
+        config.splash_open_threshold = parseDouble(name, value);
+    } else if (key == "near_surface_distance_factor") {
+        config.near_surface_distance_factor = parseDouble(name, value);
     } else {
         throw std::runtime_error("Unknown config key: " + name);
     }

@@ -39,6 +39,17 @@ int main() {
         neighbor_count_ratio = 0.8
         number_density_ratio = 0.75
         near_surface_layers = 2
+        screen_radius_factor = 3.1
+        wall_patch_radius_factor = 0.85
+        particle_radius_factor = 0.5
+        open_threshold = 0.18
+        cone_angle_degrees = 45.0
+        cone_threshold = 0.62
+        min_cone_accessible_ratio = 0.40
+        cubed_sphere_q = 8
+        splash_max_fluid_neighbors = 3
+        splash_open_threshold = 0.8
+        near_surface_distance_factor = 1.25
 
         [linear_solver]
         max_iterations = 500
@@ -59,6 +70,17 @@ int main() {
     assert(config.free_surface.neighbor_count_ratio == 0.8);
     assert(config.free_surface.number_density_ratio == 0.75);
     assert(config.free_surface.near_surface_layers == 2);
+    assert(config.free_surface.screen_radius_factor == 3.1);
+    assert(config.free_surface.wall_patch_radius_factor == 0.85);
+    assert(config.free_surface.particle_radius_factor == 0.5);
+    assert(config.free_surface.open_threshold == 0.18);
+    assert(config.free_surface.cone_angle_degrees == 45.0);
+    assert(config.free_surface.cone_threshold == 0.62);
+    assert(config.free_surface.min_cone_accessible_ratio == 0.40);
+    assert(config.free_surface.cubed_sphere_q == 8);
+    assert(config.free_surface.splash_max_fluid_neighbors == 3);
+    assert(config.free_surface.splash_open_threshold == 0.8);
+    assert(config.free_surface.near_surface_distance_factor == 1.25);
     assert(config.linear_solver.max_iterations == 500);
     assert(config.linear_solver.tolerance == 0.000001);
 

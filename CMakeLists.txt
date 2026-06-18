@@ -12,6 +12,7 @@ add_library(lsmps3d_core
     src/core/simulation_config.cpp
     src/io/logger.cpp
     src/io/vtk_writer.cpp
+    src/free_surface/free_surface_detector.cpp
     src/neighbor/cell_linked_list.cpp
     src/neighbor/neighbor_search.cpp
 )
@@ -102,3 +103,14 @@ target_link_libraries(neighbor_search_large_case_test
 )
 
 add_test(NAME neighbor_search_large_case_test COMMAND neighbor_search_large_case_test)
+
+add_executable(free_surface_detector_test
+    tests/free_surface_detector_test.cpp
+)
+
+target_link_libraries(free_surface_detector_test
+    PRIVATE
+        lsmps3d_core
+)
+
+add_test(NAME free_surface_detector_test COMMAND free_surface_detector_test)

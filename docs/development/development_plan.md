@@ -223,16 +223,21 @@ cases/
 
 目标：在 LSMPS 离散模块前完成自由面状态识别，为后续算子构造、PPE 边界条件和可视化提供粒子状态信息。
 
-状态：未开始
+状态：进行中
+
+算法设计：
+
+- [o] 完成壁面感知的自由面识别算法设计，见 `docs/development/modules/free_surface_detection_design.md`。
+- [o] 参考 `docs/development/modules/ALGORITHM_GPU_CN.md` 实现 `R_open + R_cone` 综合判定；当前版本不实现最大连通域判定。
 
 任务：
 
-- [ ] 实现基于邻居数量或数密度的自由面识别。
-- [ ] 标记 `Internal`、`FreeSurface`、`NearFreeSurface`。
-- [ ] 设计 `Splash` 状态的初始判据或预留接口。
-- [ ] 将自由面识别阈值接入参数配置模块。
-- [ ] 将自由面状态写入 VTK 输出。
-- [ ] 使用简单静态粒子分布检查自由面识别结果。
+- [o] 实现基于 cubed sphere 开口面积 `R_open` 和锥形开口 `R_cone` 的自由面识别。
+- [o] 标记 `Internal`、`FreeSurface`、`NearFreeSurface`。
+- [o] 设计并实现 `Splash` 状态的初始保守判据。
+- [o] 将自由面识别阈值接入参数配置模块。
+- [o] 将自由面状态和诊断量写入 VTK 输出用于测试验收。
+- [o] 使用简单静态粒子分布检查自由面识别结果。
 
 验收标准：
 

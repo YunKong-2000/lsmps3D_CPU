@@ -19,6 +19,7 @@ void ParticleSet::clear() {
     densities_.clear();
     types_.clear();
     fluid_states_.clear();
+    wall_normals_.clear();
     neighbor_counts_.clear();
     fluid_neighbor_counts_.clear();
     wall_neighbor_counts_.clear();
@@ -31,6 +32,7 @@ void ParticleSet::reserve(std::size_t count) {
     densities_.reserve(count);
     types_.reserve(count);
     fluid_states_.reserve(count);
+    wall_normals_.reserve(count);
     neighbor_counts_.reserve(count);
     fluid_neighbor_counts_.reserve(count);
     wall_neighbor_counts_.reserve(count);
@@ -42,7 +44,8 @@ std::size_t ParticleSet::addParticle(
     const Vector3& velocity,
     double pressure,
     double density,
-    FluidParticleState fluid_state) {
+    FluidParticleState fluid_state,
+    const Vector3& wall_normal) {
     const std::size_t index = size();
     positions_.push_back(position);
     velocities_.push_back(velocity);
@@ -50,6 +53,7 @@ std::size_t ParticleSet::addParticle(
     densities_.push_back(density);
     types_.push_back(type);
     fluid_states_.push_back(fluid_state);
+    wall_normals_.push_back(wall_normal);
     neighbor_counts_.push_back(0);
     fluid_neighbor_counts_.push_back(0);
     wall_neighbor_counts_.push_back(0);
@@ -69,14 +73,16 @@ std::size_t ParticleSet::addWallParticle(
     const Vector3& position,
     const Vector3& velocity,
     double pressure,
-    double density) {
+    double density,
+    const Vector3& wall_normal) {
     return addParticle(
         ParticleType::Wall,
         position,
         velocity,
         pressure,
         density,
-        FluidParticleState::Internal);
+        FluidParticleState::Internal,
+        wall_normal);
 }
 
 const std::vector<Vector3>& ParticleSet::positions() const noexcept {
@@ -125,6 +131,14 @@ const std::vector<FluidParticleState>& ParticleSet::fluidStates() const noexcept
 
 std::vector<FluidParticleState>& ParticleSet::fluidStates() noexcept {
     return fluid_states_;
+}
+
+const std::vector<Vector3>& ParticleSet::wallNormals() const noexcept {
+    return wall_normals_;
+}
+
+std::vector<Vector3>& ParticleSet::wallNormals() noexcept {
+    return wall_normals_;
 }
 
 const std::vector<std::size_t>& ParticleSet::neighborCounts() const noexcept {

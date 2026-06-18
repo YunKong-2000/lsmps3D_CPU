@@ -27,9 +27,9 @@ int toVtkValue(FluidParticleState state) {
     switch (state) {
     case FluidParticleState::Internal:
         return 0;
-    case FluidParticleState::FreeSurface:
-        return 1;
     case FluidParticleState::NearFreeSurface:
+        return 1;
+    case FluidParticleState::FreeSurface:
         return 2;
     case FluidParticleState::Splash:
         return 3;
