@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.20)
 project(lsmps3d_cpu LANGUAGES CXX)
 
 find_package(Eigen3 REQUIRED)
+find_package(MPI REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PETSC REQUIRED IMPORTED_TARGET PETSc)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -38,6 +41,8 @@ target_compile_options(lsmps3d_core
 target_link_libraries(lsmps3d_core
     PUBLIC
         Eigen3::Eigen
+        MPI::MPI_CXX
+        PkgConfig::PETSC
 )
 
 add_executable(lsmps3d
@@ -171,3 +176,25 @@ target_link_libraries(provisional_velocity_test
 )
 
 add_test(NAME provisional_velocity_test COMMAND provisional_velocity_test)
+
+add_executable(pressure_poisson_test
+    tests/pressure_poisson_test.cpp
+)
+
+target_link_libraries(pressure_poisson_test
+    PRIVATE
+        lsmps3d_core
+)
+
+add_test(NAME pressure_poisson_test COMMAND pressure_poisson_test)
+
+add_executable(hydrostatic_full_pipeline_test
+    tests/hydrostatic_full_pipeline_test.cpp
+)
+
+target_link_libraries(hydrostatic_full_pipeline_test
+    PRIVATE
+        lsmps3d_core
+)
+
+add_test(NAME hydrostatic_full_pipeline_test COMMAND hydrostatic_full_pipeline_test)

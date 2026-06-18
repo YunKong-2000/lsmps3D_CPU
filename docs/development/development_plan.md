@@ -38,6 +38,7 @@
 - Provisional 模块负责黏性项、重力项和外力项，不负责压力求解和最终位置更新。
 - PPE 模块只负责根据 $\mathbf{u}^{*}$、自由面 Dirichlet 条件和壁面 Neumann 条件装配并求解压力。
 - Correction 模块负责压力梯度、速度修正和下一时间步粒子位置更新。
+- PPE 大型稀疏非对称线性系统第一版采用 PETSc KSP 迭代求解，默认使用 AIJ 稀疏矩阵和 GMRES/FGMRES 类方法。
 
 ## 3. 计划项目结构
 
@@ -334,23 +335,46 @@ cases/
 
 目标：实现 PPE 的矩阵组装和求解。
 
-状态：未开始
+状态：第一版已完成
+
+实现路径：
+
+- [o] 完成 PPE 稀疏线性系统求解库选型和装配设计，见 `docs/development/modules/pressure_poisson_solver_design.md`。
+- [o] 第一版选择 PETSc 作为大型非对称稀疏 PPE 的线性代数库。
+- [o] 稀疏矩阵格式采用 PETSc AIJ。
+- [o] 默认迭代方法采用 GMRES 或 FGMRES，预条件器第一版使用 ILU/BJACOBI+ILU，后续可切换到带 HYPRE 的 PETSc。
 
 任务：
 
-- [ ] 设计稀疏矩阵数据结构或接入现有库。
-- [ ] 实现 PPE 右端项 $\frac{\rho}{\Delta t}\nabla \cdot \mathbf{u}^{*}$。
-- [ ] 使用 type-A 格式组装压力拉普拉斯算子。
-- [ ] 实现自由面压力 Dirichlet 方程行。
-- [ ] 实现壁面压力第二类边界贡献。
-- [ ] 实现 CG 或其他线性求解器。
-- [ ] 输出压力残差和迭代次数。
-- [ ] 通过解析 Poisson 问题进行验证。
+- [o] 接入 PETSc。
+- [o] 设计压力自由度映射 `particle_index -> pressure_dof`。
+- [o] 使用 PETSc AIJ 构造 PPE 稀疏矩阵。
+- [o] 实现 PPE 右端项 $\frac{\rho}{\Delta t}\nabla \cdot \mathbf{u}^{*}$。
+- [o] 使用 type-A 格式组装压力拉普拉斯算子。
+- [o] 实现自由面压力 Dirichlet 方程行。
+- [o] 实现壁面压力第二类边界贡献。
+- [o] 使用 PETSc KSP 迭代求解非对称线性系统。
+- [o] 输出压力残差和迭代次数。
+- [o] 通过静水压力算例进行第一版验证。
+
+当前实现说明：
+
+- PETSc 通过 `PkgConfig::PETSC` 接入，MPI 通过 `MPI::MPI_CXX` 接入。
+- `PressurePoissonAssembler::solve` 返回压力、收敛信息和 PPE 诊断量。
+- 当前默认使用 PETSc AIJ 矩阵、GMRES 和 ILU 预条件。
+- 自由面粒子使用 Dirichlet 方程行，当前测试取自由面压力为 0。
+- 非自由面流体粒子使用 `pressure_neumann.inverse_moment` 装配压力拉普拉斯。
+- PPE 右端项使用 Provisional 模块输出的临时速度计算散度。
+- 测试 `pressure_poisson_test` 输出 `output/pressure_poisson_hydrostatic_8x8x8.vtk`。
+- 测试 `hydrostatic_full_pipeline_test` 生成 1m x 1m x 1m 水箱、0.5m 水深的标准静水算例；侧壁和底壁使用完整水箱壁面粒子，侧壁延伸到 1m 高度，不在液面处截断；算例依次执行邻域搜索、自由面识别、LSMPS 逆矩阵、Provisional 和 PPE，输出 `output/hydrostatic_box_1m_0p5m_full_pipeline.vtk`。
+- 当前 PETSc/OpenMPI 在受限运行环境下可能打印 TCP bind 警告，但不影响单进程测试返回码。
 
 验收标准：
 
 - PPE 不使用 type-B 格式。
+- PPE 不使用 CG 作为默认求解器，因为 LSMPS PPE 矩阵通常不对称。
 - 自由面压力第一类边界通过线性系统行替换施加。
+- PETSc 求解器应输出收敛原因、迭代次数和最终残差。
 - 简单 Poisson 验证算例误差可控。
 
 ### 阶段 9：压力修正 Correction 模块
@@ -427,6 +451,9 @@ cases/
 | 2026-06-18 | 实现 LSMPS type-A 逆矩阵模块、Eigen 接入、矩阵诊断和 VTK 测试输出 | 已完成 |
 | 2026-06-18 | 增加 20x20x20 静水压力和管道解析速度算子验证，输出 VTK 可视化验收文件 | 已完成 |
 | 2026-06-18 | 实现 Provisional 临时速度模块，支持黏性项、重力项、外力项和 VTK 诊断输出 | 已完成 |
+| 2026-06-18 | 完成 PPE 求解器选型，确定使用 PETSc KSP、AIJ 稀疏矩阵和 GMRES/FGMRES 迭代路线 | 已完成 |
+| 2026-06-18 | 实现 PETSc 版 PPE 第一版装配与求解，完成 8x8x8 静水压力 VTK 验证 | 已完成 |
+| 2026-06-18 | 增加 1m 水箱、0.5m 水深标准静水全流程单步算例，串联邻域搜索、自由面识别、Provisional 和 PPE | 已完成 |
 
 ## 6. 近期优先级
 
@@ -448,7 +475,7 @@ cases/
 
 - C++ 标准版本：建议 `C++17` 或更高。
 - 线性代数库：工程骨架阶段暂不引入 Eigen；从 LSMPS 逆矩阵模块开始建议引入 Eigen，用于固定尺寸局部矩阵求逆、特征值诊断和后续 PPE 稀疏线性代数。
-- 稀疏矩阵格式：初始阶段可使用 Eigen sparse 或自定义 CSR。
+- PPE 稀疏线性代数：第一版使用 PETSc KSP 和 AIJ 矩阵；Eigen sparse 不作为大型 PPE 默认求解后端。
 - VTK 格式：建议先支持 VTK legacy ASCII，后续再扩展二进制或 VTU。
 - 配置文件格式：第一阶段采用 INI 分块格式，支持注释和三维向量；后续如算例复杂度提升，可再评估 JSON 或 YAML。
 - 单元测试框架：可选择 Catch2、GoogleTest，或先用简单测试可执行文件。
