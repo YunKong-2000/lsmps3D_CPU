@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.20)
 
 project(lsmps3d_cpu LANGUAGES CXX)
 
+find_package(Eigen3 REQUIRED)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -13,6 +15,9 @@ add_library(lsmps3d_core
     src/io/logger.cpp
     src/io/vtk_writer.cpp
     src/free_surface/free_surface_detector.cpp
+    src/lsmps/lsmps_basis.cpp
+    src/lsmps/lsmps_matrices.cpp
+    src/lsmps/weight_function.cpp
     src/neighbor/cell_linked_list.cpp
     src/neighbor/neighbor_search.cpp
 )
@@ -25,6 +30,11 @@ target_include_directories(lsmps3d_core
 target_compile_options(lsmps3d_core
     PRIVATE
         $<$<CXX_COMPILER_ID:AppleClang,Clang,GNU>:-Wall -Wextra -Wpedantic>
+)
+
+target_link_libraries(lsmps3d_core
+    PUBLIC
+        Eigen3::Eigen
 )
 
 add_executable(lsmps3d
@@ -114,3 +124,25 @@ target_link_libraries(free_surface_detector_test
 )
 
 add_test(NAME free_surface_detector_test COMMAND free_surface_detector_test)
+
+add_executable(lsmps_matrix_test
+    tests/lsmps_matrix_test.cpp
+)
+
+target_link_libraries(lsmps_matrix_test
+    PRIVATE
+        lsmps3d_core
+)
+
+add_test(NAME lsmps_matrix_test COMMAND lsmps_matrix_test)
+
+add_executable(lsmps_operator_validation_test
+    tests/lsmps_operator_validation_test.cpp
+)
+
+target_link_libraries(lsmps_operator_validation_test
+    PRIVATE
+        lsmps3d_core
+)
+
+add_test(NAME lsmps_operator_validation_test COMMAND lsmps_operator_validation_test)

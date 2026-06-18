@@ -11,8 +11,8 @@
 3. 输出 VTK 结果用于 ParaView 可视化。
 4. 构建邻域搜索。
 5. 识别自由面和近自由面粒子。
-6. 构造 LSMPS type-A 微分算子。
-7. 完成基础算子验证。
+6. 构造 LSMPS type-A 基函数、核函数、常规逆矩阵和压力 Neumann 逆矩阵。
+7. 完成逆矩阵、多项式重构和压力 Neumann 约束验证。
 8. 组装并求解 PPE。
 
 初始版本暂不追求复杂边界、并行性能和高级稳定化模型，重点是建立正确的程序结构和验证路径。
@@ -245,28 +245,46 @@ cases/
 - `FreeSurface`、`NearFreeSurface` 状态能够被后续 PPE 和诊断输出直接使用。
 - 自由面识别模块只依赖粒子数据、邻居列表和配置参数，不依赖 LSMPS 离散算子。
 
-### 阶段 6：LSMPS type-A 算子
+### 阶段 6：LSMPS type-A 逆矩阵模块
 
-目标：实现基础 LSMPS type-A 微分算子。
+目标：实现基础 LSMPS type-A 基函数、核函数、常规逆矩阵、压力 Neumann 逆矩阵和矩阵诊断接口，为后续物理离散模块提供公共能力。
 
-状态：未开始
+状态：已完成
+
+实现路径：
+
+- [o] 建立 LSMPS type-A 逆矩阵模块实现路径文档，见 `docs/development/modules/lsmps_type_a_implementation.md`。
 
 任务：
 
-- [ ] 实现二阶多项式基向量 $\mathbf{p}_{ij}$。
-- [ ] 实现权函数 $w_{ij}$。
-- [ ] 构造局部矩矩阵 $M_i$。
-- [ ] 实现梯度算子。
-- [ ] 实现散度算子。
-- [ ] 实现拉普拉斯算子。
-- [ ] 输出矩阵条件数或矩阵构造状态。
-- [ ] 对解析函数验证梯度和拉普拉斯误差。
+- [o] 实现二阶多项式基向量 $\mathbf{p}_{ij}$。
+- [o] 实现壁面 Neumann 约束基向量 $\mathbf{q}_{ij}$。
+- [o] 实现权函数 $w_{ij}$。
+- [o] 引入线性代数库用于固定尺寸局部矩阵求逆和诊断。
+- [o] 构造并缓存常规 `inverse_moment`，壁面邻居按 $\mathbf{p}_{ij}\mathbf{p}_{ij}^T$ 贡献。
+- [o] 构造并缓存压力 Neumann `inverse_moment`，壁面邻居按 $\mathbf{q}_{ij}\mathbf{q}_{ij}^T$ 贡献。
+- [o] 输出两类逆矩阵的秩、条件数、特征值和构造状态。
+- [o] 对解析多项式验证常规逆矩阵重构能力。
+- [o] 对解析压力 Neumann 约束验证压力逆矩阵构造能力。
+
+当前实现说明：
+
+- LSMPS 基函数、权函数和逆矩阵构造位于 `src/lsmps/`。
+- 当前使用 Eigen 固定尺寸 9x9 矩阵完成特征值诊断、秩检查和求逆。
+- 原始累加矩阵只在构造过程中临时存在，不长期缓存。
+- 对每个流体粒子缓存 `regular.inverse_moment` 和 `pressure_neumann.inverse_moment`。
+- `regular` 矩阵中壁面邻居按 $\mathbf{p}_{ij}\mathbf{p}_{ij}^T$ 贡献。
+- `pressure_neumann` 矩阵中壁面邻居按 $\mathbf{q}_{ij}\mathbf{q}_{ij}^T$ 贡献。
+- 测试 `lsmps_matrix_test` 会输出 `build/output/lsmps_matrix_diagnostics.vtk` 用于 ParaView 检查。
+- 测试 `lsmps_operator_validation_test` 使用 20x20x20 流体粒子加单层壁面粒子的静水压力和管道解析速度算例，输出 `output/lsmps_hydrostatic_20x20x20.vtk` 与 `output/lsmps_pipe_20x20x20.vtk`。
 
 验收标准：
 
-- 对简单解析函数，导数误差随粒子间距减小而下降。
-- 内部粒子的矩矩阵能够稳定构造。
-- 算子实现与 `docs/theory/lsmps_scheme.md` 中 type-A 格式一致。
+- 对简单解析多项式，常规逆矩阵重构结果与解析多项式系数一致。
+- 近壁流体粒子的压力 Neumann 逆矩阵能够稳定构造，并且不同于常规逆矩阵。
+- 后续模块只需要读取缓存的 `inverse_moment`，不依赖长期缓存的原始矩阵。
+- 壁面邻居默认参与矩阵构造，近壁粒子可输出壁面邻居数和两类矩阵质量诊断。
+- 逆矩阵实现与 `docs/theory/lsmps_scheme.md` 中 type-A 及壁面第二类边界格式一致。
 
 ### 阶段 7：压力泊松方程
 
@@ -342,6 +360,9 @@ cases/
 | 2026-06-17 | 实现核心粒子数据结构、粒子类型枚举、流体状态枚举和基础测试 | 已完成 |
 | 2026-06-18 | 实现参数配置模块、INI 配置读取、默认参数、合法性检查和配置测试 | 已完成 |
 | 2026-06-18 | 实现 VTK legacy ASCII 粒子输出模块、默认字段和附加诊断字段接口 | 已完成 |
+| 2026-06-18 | 建立 LSMPS type-A 逆矩阵模块实现路径文档 | 已完成 |
+| 2026-06-18 | 实现 LSMPS type-A 逆矩阵模块、Eigen 接入、矩阵诊断和 VTK 测试输出 | 已完成 |
+| 2026-06-18 | 增加 20x20x20 静水压力和管道解析速度算子验证，输出 VTK 可视化验收文件 | 已完成 |
 
 ## 6. 近期优先级
 
@@ -353,15 +374,14 @@ cases/
 4. 实现 VTK 输出，尽早建立可视化反馈。
 5. 实现邻域搜索。
 6. 紧接邻域搜索实现自由面识别。
-7. 实现 LSMPS type-A 算子并完成解析函数验证。
-8. 再进入 PPE 组装和压力求解。
+7. 基于 LSMPS 逆矩阵模块进入 PPE 组装和压力求解。
 
 这样可以尽早发现数据结构、参数传递、输出格式、邻域搜索和自由面判据中的问题，避免直接进入复杂流动求解后难以定位错误。
 
 ## 7. 待决策事项
 
 - C++ 标准版本：建议 `C++17` 或更高。
-- 线性代数库：工程骨架阶段暂不引入 Eigen；LSMPS 矩阵和 PPE 阶段再评估接入 Eigen 或其他库。
+- 线性代数库：工程骨架阶段暂不引入 Eigen；从 LSMPS 逆矩阵模块开始建议引入 Eigen，用于固定尺寸局部矩阵求逆、特征值诊断和后续 PPE 稀疏线性代数。
 - 稀疏矩阵格式：初始阶段可使用 Eigen sparse 或自定义 CSR。
 - VTK 格式：建议先支持 VTK legacy ASCII，后续再扩展二进制或 VTU。
 - 配置文件格式：第一阶段采用 INI 分块格式，支持注释和三维向量；后续如算例复杂度提升，可再评估 JSON 或 YAML。

@@ -45,6 +45,18 @@ struct FreeSurfaceConfig {
     double near_surface_distance_factor = 1.5;
 };
 
+enum class LsmpsKernelType {
+    Linear,
+};
+
+struct LsmpsConfig {
+    std::size_t min_neighbors = 9;
+    double eigenvalue_tolerance = 1.0e-12;
+    double condition_number_warning = 1.0e8;
+    double condition_number_failure = 1.0e12;
+    LsmpsKernelType kernel_type = LsmpsKernelType::Linear;
+};
+
 struct LinearSolverConfig {
     std::size_t max_iterations = 1000;
     double tolerance = 1.0e-10;
@@ -55,6 +67,7 @@ struct SimulationConfig {
     GeometryConfig geometry;
     PhysicalConfig physical;
     FreeSurfaceConfig free_surface;
+    LsmpsConfig lsmps;
     LinearSolverConfig linear_solver;
 
     std::vector<std::string> validate() const;

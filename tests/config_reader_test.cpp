@@ -51,6 +51,13 @@ int main() {
         splash_open_threshold = 0.8
         near_surface_distance_factor = 1.25
 
+        [lsmps]
+        min_neighbors = 12
+        eigenvalue_tolerance = 0.000000000001
+        condition_number_warning = 1000000
+        condition_number_failure = 1000000000
+        kernel_type = linear
+
         [linear_solver]
         max_iterations = 500
         tolerance = 0.000001
@@ -81,6 +88,11 @@ int main() {
     assert(config.free_surface.splash_max_fluid_neighbors == 3);
     assert(config.free_surface.splash_open_threshold == 0.8);
     assert(config.free_surface.near_surface_distance_factor == 1.25);
+    assert(config.lsmps.min_neighbors == 12);
+    assert(config.lsmps.eigenvalue_tolerance == 0.000000000001);
+    assert(config.lsmps.condition_number_warning == 1000000.0);
+    assert(config.lsmps.condition_number_failure == 1000000000.0);
+    assert(config.lsmps.kernel_type == lsmps::LsmpsKernelType::Linear);
     assert(config.linear_solver.max_iterations == 500);
     assert(config.linear_solver.tolerance == 0.000001);
 

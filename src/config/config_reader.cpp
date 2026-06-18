@@ -78,7 +78,7 @@ std::string fullKey(const std::string& section, const std::string& key) {
 
 bool isKnownSection(const std::string& section) {
     return section == "time" || section == "geometry" || section == "physical" ||
-           section == "free_surface" || section == "linear_solver";
+           section == "free_surface" || section == "lsmps" || section == "linear_solver";
 }
 
 void applyTimeConfig(TimeConfig& config, const std::string& key, const std::string& value) {
@@ -161,6 +161,35 @@ void applyFreeSurfaceConfig(FreeSurfaceConfig& config, const std::string& key, c
     }
 }
 
+LsmpsKernelType parseKernelType(const std::string& key, const std::string& value) {
+    std::string normalized = value;
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](unsigned char character) {
+        return static_cast<char>(std::tolower(character));
+    });
+
+    if (normalized == "linear") {
+        return LsmpsKernelType::Linear;
+    }
+    throw std::runtime_error("Unknown kernel type for " + key + ": " + value);
+}
+
+void applyLsmpsConfig(LsmpsConfig& config, const std::string& key, const std::string& value) {
+    const std::string name = fullKey("lsmps", key);
+    if (key == "min_neighbors") {
+        config.min_neighbors = parseSize(name, value);
+    } else if (key == "eigenvalue_tolerance") {
+        config.eigenvalue_tolerance = parseDouble(name, value);
+    } else if (key == "condition_number_warning") {
+        config.condition_number_warning = parseDouble(name, value);
+    } else if (key == "condition_number_failure") {
+        config.condition_number_failure = parseDouble(name, value);
+    } else if (key == "kernel_type") {
+        config.kernel_type = parseKernelType(name, value);
+    } else {
+        throw std::runtime_error("Unknown config key: " + name);
+    }
+}
+
 void applyLinearSolverConfig(LinearSolverConfig& config, const std::string& key, const std::string& value) {
     const std::string name = fullKey("linear_solver", key);
     if (key == "max_iterations") {
@@ -185,6 +214,8 @@ void applySectionValue(
         applyPhysicalConfig(config.physical, key, value);
     } else if (section == "free_surface") {
         applyFreeSurfaceConfig(config.free_surface, key, value);
+    } else if (section == "lsmps") {
+        applyLsmpsConfig(config.lsmps, key, value);
     } else if (section == "linear_solver") {
         applyLinearSolverConfig(config.linear_solver, key, value);
     } else {

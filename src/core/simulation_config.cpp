@@ -88,6 +88,22 @@ std::vector<std::string> SimulationConfig::validate() const {
         errors.push_back("free_surface.near_surface_distance_factor must be positive");
     }
 
+    if (lsmps.min_neighbors == 0) {
+        errors.push_back("lsmps.min_neighbors must be positive");
+    }
+    if (lsmps.eigenvalue_tolerance <= 0.0) {
+        errors.push_back("lsmps.eigenvalue_tolerance must be positive");
+    }
+    if (lsmps.condition_number_warning <= 0.0) {
+        errors.push_back("lsmps.condition_number_warning must be positive");
+    }
+    if (lsmps.condition_number_failure <= 0.0) {
+        errors.push_back("lsmps.condition_number_failure must be positive");
+    }
+    if (lsmps.condition_number_warning > lsmps.condition_number_failure) {
+        errors.push_back("lsmps.condition_number_warning must not exceed condition_number_failure");
+    }
+
     if (linear_solver.max_iterations == 0) {
         errors.push_back("linear_solver.max_iterations must be positive");
     }
