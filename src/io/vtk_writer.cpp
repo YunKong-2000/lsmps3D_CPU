@@ -135,6 +135,16 @@ void VtkWriter::writeParticles(
         file << neighbor_count << '\n';
     }
 
+    writeScalarHeader(file, "fluid_neighbor_count", "int");
+    for (const std::size_t neighbor_count : particles.fluidNeighborCounts()) {
+        file << neighbor_count << '\n';
+    }
+
+    writeScalarHeader(file, "wall_neighbor_count", "int");
+    for (const std::size_t neighbor_count : particles.wallNeighborCounts()) {
+        file << neighbor_count << '\n';
+    }
+
     for (const VtkScalarField& field : scalar_fields) {
         writeScalarHeader(file, field.name, "double");
         for (const double value : field.values) {

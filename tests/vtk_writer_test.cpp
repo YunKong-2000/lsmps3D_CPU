@@ -34,6 +34,10 @@ int main() {
     particles.addWallParticle({1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, 20.0, 1000.0);
     particles.neighborCounts()[0] = 12;
     particles.neighborCounts()[1] = 8;
+    particles.fluidNeighborCounts()[0] = 9;
+    particles.fluidNeighborCounts()[1] = 5;
+    particles.wallNeighborCounts()[0] = 3;
+    particles.wallNeighborCounts()[1] = 3;
 
     const std::string path = "vtk_writer_test_output.vtk";
     const lsmps::VtkWriter writer;
@@ -54,6 +58,8 @@ int main() {
     assert(contains(output, "SCALARS particle_type int 1\nLOOKUP_TABLE default\n0\n1\n"));
     assert(contains(output, "SCALARS fluid_state int 1\nLOOKUP_TABLE default\n1\n0\n"));
     assert(contains(output, "SCALARS neighbor_count int 1\nLOOKUP_TABLE default\n12\n8\n"));
+    assert(contains(output, "SCALARS fluid_neighbor_count int 1\nLOOKUP_TABLE default\n9\n5\n"));
+    assert(contains(output, "SCALARS wall_neighbor_count int 1\nLOOKUP_TABLE default\n3\n3\n"));
     assert(contains(output, "SCALARS diagnostic_scalar double 1\n"));
     assert(contains(output, "VECTORS diagnostic_vector double\n"));
 

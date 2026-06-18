@@ -20,6 +20,8 @@ void ParticleSet::clear() {
     types_.clear();
     fluid_states_.clear();
     neighbor_counts_.clear();
+    fluid_neighbor_counts_.clear();
+    wall_neighbor_counts_.clear();
 }
 
 void ParticleSet::reserve(std::size_t count) {
@@ -30,6 +32,8 @@ void ParticleSet::reserve(std::size_t count) {
     types_.reserve(count);
     fluid_states_.reserve(count);
     neighbor_counts_.reserve(count);
+    fluid_neighbor_counts_.reserve(count);
+    wall_neighbor_counts_.reserve(count);
 }
 
 std::size_t ParticleSet::addParticle(
@@ -47,6 +51,8 @@ std::size_t ParticleSet::addParticle(
     types_.push_back(type);
     fluid_states_.push_back(fluid_state);
     neighbor_counts_.push_back(0);
+    fluid_neighbor_counts_.push_back(0);
+    wall_neighbor_counts_.push_back(0);
     return index;
 }
 
@@ -127,6 +133,22 @@ const std::vector<std::size_t>& ParticleSet::neighborCounts() const noexcept {
 
 std::vector<std::size_t>& ParticleSet::neighborCounts() noexcept {
     return neighbor_counts_;
+}
+
+const std::vector<std::size_t>& ParticleSet::fluidNeighborCounts() const noexcept {
+    return fluid_neighbor_counts_;
+}
+
+std::vector<std::size_t>& ParticleSet::fluidNeighborCounts() noexcept {
+    return fluid_neighbor_counts_;
+}
+
+const std::vector<std::size_t>& ParticleSet::wallNeighborCounts() const noexcept {
+    return wall_neighbor_counts_;
+}
+
+std::vector<std::size_t>& ParticleSet::wallNeighborCounts() noexcept {
+    return wall_neighbor_counts_;
 }
 
 bool ParticleSet::isFluid(std::size_t index) const {

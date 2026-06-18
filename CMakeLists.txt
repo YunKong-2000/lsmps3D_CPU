@@ -12,6 +12,8 @@ add_library(lsmps3d_core
     src/core/simulation_config.cpp
     src/io/logger.cpp
     src/io/vtk_writer.cpp
+    src/neighbor/cell_linked_list.cpp
+    src/neighbor/neighbor_search.cpp
 )
 
 target_include_directories(lsmps3d_core
@@ -78,3 +80,25 @@ target_link_libraries(vtk_writer_test
 )
 
 add_test(NAME vtk_writer_test COMMAND vtk_writer_test)
+
+add_executable(neighbor_search_test
+    tests/neighbor_search_test.cpp
+)
+
+target_link_libraries(neighbor_search_test
+    PRIVATE
+        lsmps3d_core
+)
+
+add_test(NAME neighbor_search_test COMMAND neighbor_search_test)
+
+add_executable(neighbor_search_large_case_test
+    tests/neighbor_search_large_case_test.cpp
+)
+
+target_link_libraries(neighbor_search_large_case_test
+    PRIVATE
+        lsmps3d_core
+)
+
+add_test(NAME neighbor_search_large_case_test COMMAND neighbor_search_large_case_test)

@@ -3,6 +3,7 @@
 #include "core/simulation_config.hpp"
 #include "io/logger.hpp"
 #include "io/vtk_writer.hpp"
+#include "neighbor/neighbor_search.hpp"
 
 #include <exception>
 #include <string>
@@ -58,7 +59,11 @@ int main(int argc, char** argv) {
         }
         logConfigSummary(logger, config);
 
-        const lsmps::ParticleSet particles = createOutputSmokeParticles(config);
+        lsmps::ParticleSet particles = createOutputSmokeParticles(config);
+        lsmps::NeighborSearch neighbor_search(config.geometry.support_radius, config.geometry.domain_min);
+        const lsmps::NeighborList neighbors = neighbor_search.buildNeighborList(particles);
+        neighbor_search.updateNeighborCounts(particles, neighbors);
+
         const std::string output_path = "output/initial_particles.vtk";
         const lsmps::VtkWriter vtk_writer;
         vtk_writer.writeParticles(output_path, particles);

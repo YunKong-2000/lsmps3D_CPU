@@ -31,13 +31,19 @@ int main() {
     assert(particles.pressures()[fluid] == 100.0);
     assert(particles.densities()[fluid] == 1000.0);
     assert(particles.neighborCounts()[fluid] == 0);
+    assert(particles.fluidNeighborCounts()[fluid] == 0);
+    assert(particles.wallNeighborCounts()[fluid] == 0);
 
     particles.pressures()[fluid] = 200.0;
     particles.neighborCounts()[fluid] = 12;
+    particles.fluidNeighborCounts()[fluid] = 9;
+    particles.wallNeighborCounts()[fluid] = 3;
     particles.fluidStates()[fluid] = lsmps::FluidParticleState::NearFreeSurface;
 
     assert(particles.pressures()[fluid] == 200.0);
     assert(particles.neighborCounts()[fluid] == 12);
+    assert(particles.fluidNeighborCounts()[fluid] == 9);
+    assert(particles.wallNeighborCounts()[fluid] == 3);
     assert(particles.fluidStates()[fluid] == lsmps::FluidParticleState::NearFreeSurface);
 
     const lsmps::Vector3 sum = particles.positions()[fluid] + lsmps::Vector3{1.0, 1.0, 1.0};

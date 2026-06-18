@@ -57,6 +57,12 @@ public:
     const std::vector<std::size_t>& neighborCounts() const noexcept;
     std::vector<std::size_t>& neighborCounts() noexcept;
 
+    const std::vector<std::size_t>& fluidNeighborCounts() const noexcept;
+    std::vector<std::size_t>& fluidNeighborCounts() noexcept;
+
+    const std::vector<std::size_t>& wallNeighborCounts() const noexcept;
+    std::vector<std::size_t>& wallNeighborCounts() noexcept;
+
     bool isFluid(std::size_t index) const;
     bool isWall(std::size_t index) const;
 
@@ -68,6 +74,8 @@ private:
     std::vector<ParticleType> types_;
     std::vector<FluidParticleState> fluid_states_;
     std::vector<std::size_t> neighbor_counts_;
+    std::vector<std::size_t> fluid_neighbor_counts_;
+    std::vector<std::size_t> wall_neighbor_counts_;
 };
 
 }  // namespace lsmps
