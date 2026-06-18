@@ -11,6 +11,7 @@ add_library(lsmps3d_core
     src/core/particle_set.cpp
     src/core/simulation_config.cpp
     src/io/logger.cpp
+    src/io/vtk_writer.cpp
 )
 
 target_include_directories(lsmps3d_core
@@ -66,3 +67,14 @@ target_link_libraries(config_reader_test
 )
 
 add_test(NAME config_reader_test COMMAND config_reader_test)
+
+add_executable(vtk_writer_test
+    tests/vtk_writer_test.cpp
+)
+
+target_link_libraries(vtk_writer_test
+    PRIVATE
+        lsmps3d_core
+)
+
+add_test(NAME vtk_writer_test COMMAND vtk_writer_test)
