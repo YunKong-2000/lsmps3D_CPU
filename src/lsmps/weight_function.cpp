@@ -11,7 +11,7 @@ double evaluateWeight(double distance, double support_radius, LsmpsKernelType ke
 
     switch (kernel_type) {
     case LsmpsKernelType::Linear:
-        return std::max(0.0, 1.0 - distance / support_radius);
+        return std::max(0.0, pow(1.0 - distance / support_radius, 2));
     }
 
     return 0.0;
