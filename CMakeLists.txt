@@ -20,6 +20,9 @@ add_library(lsmps3d_core
     src/lsmps/weight_function.cpp
     src/neighbor/cell_linked_list.cpp
     src/neighbor/neighbor_search.cpp
+    src/correction/correction.cpp
+    src/pressure_poisson/pressure_poisson.cpp
+    src/provisional/provisional.cpp
 )
 
 target_include_directories(lsmps3d_core
@@ -146,3 +149,14 @@ target_link_libraries(lsmps_operator_validation_test
 )
 
 add_test(NAME lsmps_operator_validation_test COMMAND lsmps_operator_validation_test)
+
+add_executable(physics_module_structure_test
+    tests/physics_module_structure_test.cpp
+)
+
+target_link_libraries(physics_module_structure_test
+    PRIVATE
+        lsmps3d_core
+)
+
+add_test(NAME physics_module_structure_test COMMAND physics_module_structure_test)

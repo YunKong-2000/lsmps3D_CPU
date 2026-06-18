@@ -1,0 +1,17 @@
+#include "correction/correction.hpp"
+#include "pressure_poisson/pressure_poisson.hpp"
+#include "provisional/provisional.hpp"
+
+#include <cassert>
+
+int main() {
+    const lsmps::ProvisionalVelocityCalculator provisional;
+    const lsmps::PressurePoissonAssembler pressure_poisson;
+    const lsmps::PressureCorrectionApplier correction;
+
+    assert(!provisional.compute().computed);
+    assert(!pressure_poisson.assembleAndSolve().solved);
+    assert(!correction.apply().applied);
+
+    return 0;
+}
