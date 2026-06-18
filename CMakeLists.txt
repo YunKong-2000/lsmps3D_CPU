@@ -160,3 +160,14 @@ target_link_libraries(physics_module_structure_test
 )
 
 add_test(NAME physics_module_structure_test COMMAND physics_module_structure_test)
+
+add_executable(provisional_velocity_test
+    tests/provisional_velocity_test.cpp
+)
+
+target_link_libraries(provisional_velocity_test
+    PRIVATE
+        lsmps3d_core
+)
+
+add_test(NAME provisional_velocity_test COMMAND provisional_velocity_test)

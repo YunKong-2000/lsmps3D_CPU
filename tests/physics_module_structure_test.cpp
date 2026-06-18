@@ -9,7 +9,7 @@ int main() {
     const lsmps::PressurePoissonAssembler pressure_poisson;
     const lsmps::PressureCorrectionApplier correction;
 
-    assert(!provisional.compute().computed);
+    (void)provisional;
     assert(!pressure_poisson.assembleAndSolve().solved);
     assert(!correction.apply().applied);
 
