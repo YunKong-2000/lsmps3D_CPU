@@ -1,0 +1,27 @@
+#include "io/file_manager.hpp"
+
+#include <cassert>
+#include <string>
+
+int main() {
+    lsmps::FileConfig config;
+    config.input_directory = "cases/demo";
+    config.input_file = "initial.vtk";
+    config.output_directory = "output/demo";
+    config.output_prefix = "case";
+
+    const lsmps::FileManager manager(config);
+    assert(manager.inputPath() == "cases/demo/initial.vtk");
+    assert(manager.initialOutputPath() == "output/demo/case_initial.vtk");
+    assert(manager.stepOutputPath(3, 42) == "output/demo/case_00003_step_42.vtk");
+
+    config.input_file = "/tmp/absolute.vtk";
+    const lsmps::FileManager absolute_manager(config);
+    assert(absolute_manager.inputPath() == "/tmp/absolute.vtk");
+
+    config.input_file.clear();
+    const lsmps::FileManager empty_manager(config);
+    assert(empty_manager.inputPath().empty());
+
+    return 0;
+}

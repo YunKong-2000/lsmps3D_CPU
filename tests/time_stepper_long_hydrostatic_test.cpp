@@ -23,6 +23,16 @@ lsmps::SimulationConfig testConfig() {
     config.time.dt = 0.005;
     config.time.end_time = 0.05;
     config.time.output_interval = 0.01;
+    config.time_step.start_time = 0.0;
+    config.time_step.end_time = config.time.end_time;
+    config.time_step.initial_dt = config.time.dt;
+    config.time_step.min_dt = 0.001;
+    config.time_step.max_dt = config.time.dt;
+    config.time_step.cfl_number = 0.2;
+    config.time_step.growth_factor = 1.05;
+    config.time_step.output_interval = config.time.output_interval;
+    config.file.output_directory = "output/time_stepper_hydrostatic_long";
+    config.file.output_prefix = "hydrostatic";
     config.geometry.particle_spacing = spacing;
     config.geometry.support_radius = 3.1 * spacing;
     config.geometry.domain_min = {-spacing, -spacing, -spacing};
@@ -141,11 +151,7 @@ int main() {
     addBoxWalls(particles);
     const std::vector<lsmps::Vector3> initial_positions = particles.positions();
 
-    lsmps::TimeStepperOptions options;
-    options.output_directory = "output/time_stepper_hydrostatic_long";
-    options.output_prefix = "hydrostatic";
-
-    lsmps::TimeStepper stepper(config, options);
+    lsmps::TimeStepper stepper(config);
     const std::vector<lsmps::TimeStepDiagnostics> history = stepper.run(particles);
 
     assert(history.size() == 10);

@@ -49,6 +49,21 @@ double parseDouble(const std::string& key, const std::string& value) {
     return result;
 }
 
+bool parseBool(const std::string& key, const std::string& value) {
+    std::string normalized = value;
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](unsigned char character) {
+        return static_cast<char>(std::tolower(character));
+    });
+
+    if (normalized == "true" || normalized == "1" || normalized == "yes" || normalized == "on") {
+        return true;
+    }
+    if (normalized == "false" || normalized == "0" || normalized == "no" || normalized == "off") {
+        return false;
+    }
+    throw std::runtime_error("Invalid boolean value for " + key + ": " + value);
+}
+
 std::size_t parseSize(const std::string& key, const std::string& value) {
     std::istringstream stream(value);
     long long result = 0;
@@ -77,8 +92,9 @@ std::string fullKey(const std::string& section, const std::string& key) {
 }
 
 bool isKnownSection(const std::string& section) {
-    return section == "time" || section == "geometry" || section == "physical" ||
-           section == "free_surface" || section == "lsmps" || section == "linear_solver";
+    return section == "time" || section == "time_step" || section == "file" ||
+           section == "geometry" || section == "physical" || section == "free_surface" ||
+           section == "lsmps" || section == "linear_solver";
 }
 
 void applyTimeConfig(TimeConfig& config, const std::string& key, const std::string& value) {
@@ -89,6 +105,48 @@ void applyTimeConfig(TimeConfig& config, const std::string& key, const std::stri
         config.end_time = parseDouble(name, value);
     } else if (key == "output_interval") {
         config.output_interval = parseDouble(name, value);
+    } else {
+        throw std::runtime_error("Unknown config key: " + name);
+    }
+}
+
+void applyTimeStepControlConfig(TimeStepControlConfig& config, const std::string& key, const std::string& value) {
+    const std::string name = fullKey("time_step", key);
+    if (key == "start_time") {
+        config.start_time = parseDouble(name, value);
+    } else if (key == "end_time") {
+        config.end_time = parseDouble(name, value);
+    } else if (key == "initial_dt") {
+        config.initial_dt = parseDouble(name, value);
+    } else if (key == "min_dt") {
+        config.min_dt = parseDouble(name, value);
+    } else if (key == "max_dt") {
+        config.max_dt = parseDouble(name, value);
+    } else if (key == "cfl_number") {
+        config.cfl_number = parseDouble(name, value);
+    } else if (key == "growth_factor") {
+        config.growth_factor = parseDouble(name, value);
+    } else if (key == "output_interval") {
+        config.output_interval = parseDouble(name, value);
+    } else {
+        throw std::runtime_error("Unknown config key: " + name);
+    }
+}
+
+void applyFileConfig(FileConfig& config, const std::string& key, const std::string& value) {
+    const std::string name = fullKey("file", key);
+    if (key == "input_directory") {
+        config.input_directory = value;
+    } else if (key == "input_file") {
+        config.input_file = value;
+    } else if (key == "output_directory") {
+        config.output_directory = value;
+    } else if (key == "output_prefix") {
+        config.output_prefix = value;
+    } else if (key == "write_initial_state") {
+        config.write_initial_state = parseBool(name, value);
+    } else if (key == "write_outputs") {
+        config.write_outputs = parseBool(name, value);
     } else {
         throw std::runtime_error("Unknown config key: " + name);
     }
@@ -208,6 +266,10 @@ void applySectionValue(
     const std::string& value) {
     if (section == "time") {
         applyTimeConfig(config.time, key, value);
+    } else if (section == "time_step") {
+        applyTimeStepControlConfig(config.time_step, key, value);
+    } else if (section == "file") {
+        applyFileConfig(config.file, key, value);
     } else if (section == "geometry") {
         applyGeometryConfig(config.geometry, key, value);
     } else if (section == "physical") {
@@ -291,8 +353,8 @@ SimulationConfig ConfigReader::readString(const std::string& content) const {
 
         const std::string key = trim(cleaned.substr(0, separator));
         const std::string value = trim(cleaned.substr(separator + 1));
-        if (key.empty() || value.empty()) {
-            throw std::runtime_error("Invalid config line " + std::to_string(line_number) + ": empty key or value");
+        if (key.empty()) {
+            throw std::runtime_error("Invalid config line " + std::to_string(line_number) + ": empty key");
         }
         if (key.find('.') != std::string::npos) {
             throw std::runtime_error(

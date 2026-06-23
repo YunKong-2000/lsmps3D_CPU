@@ -22,6 +22,24 @@ int main() {
         end_time = 2.5
         output_interval = 0.1
 
+        [time_step]
+        start_time = 0.2
+        end_time = 2.5
+        initial_dt = 0.004
+        min_dt = 0.0001
+        max_dt = 0.01
+        cfl_number = 0.25
+        growth_factor = 1.08
+        output_interval = 0.2
+
+        [file]
+        input_directory = cases/input
+        input_file = particles.vtk
+        output_directory = output/config_test
+        output_prefix = case
+        write_initial_state = false
+        write_outputs = true
+
         [geometry]
         particle_spacing = 0.025
         support_radius = 0.075
@@ -66,6 +84,20 @@ int main() {
     assert(config.time.dt == 0.005);
     assert(config.time.end_time == 2.5);
     assert(config.time.output_interval == 0.1);
+    assert(config.time_step.start_time == 0.2);
+    assert(config.time_step.end_time == 2.5);
+    assert(config.time_step.initial_dt == 0.004);
+    assert(config.time_step.min_dt == 0.0001);
+    assert(config.time_step.max_dt == 0.01);
+    assert(config.time_step.cfl_number == 0.25);
+    assert(config.time_step.growth_factor == 1.08);
+    assert(config.time_step.output_interval == 0.2);
+    assert(config.file.input_directory == "cases/input");
+    assert(config.file.input_file == "particles.vtk");
+    assert(config.file.output_directory == "output/config_test");
+    assert(config.file.output_prefix == "case");
+    assert(!config.file.write_initial_state);
+    assert(config.file.write_outputs);
     assert(config.geometry.particle_spacing == 0.025);
     assert(config.geometry.support_radius == 0.075);
     assert(config.geometry.domain_min.x == -1.0);
@@ -135,6 +167,22 @@ int main() {
         rejected_prefixed_key = true;
     }
     assert(rejected_prefixed_key);
+
+    bool rejected_bad_bool = false;
+    try {
+        reader.readString("[file]\nwrite_outputs = maybe\n");
+    } catch (const std::runtime_error&) {
+        rejected_bad_bool = true;
+    }
+    assert(rejected_bad_bool);
+
+    bool rejected_bad_time_step = false;
+    try {
+        reader.readString("[time_step]\nmin_dt = 0.1\nmax_dt = 0.01\n");
+    } catch (const std::runtime_error&) {
+        rejected_bad_time_step = true;
+    }
+    assert(rejected_bad_time_step);
 
     return 0;
 }

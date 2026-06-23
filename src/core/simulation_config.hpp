@@ -13,6 +13,26 @@ struct TimeConfig {
     double output_interval = 0.01;
 };
 
+struct TimeStepControlConfig {
+    double start_time = 0.0;
+    double end_time = 1.0;
+    double initial_dt = 0.001;
+    double min_dt = 1.0e-6;
+    double max_dt = 0.001;
+    double cfl_number = 0.2;
+    double growth_factor = 1.05;
+    double output_interval = 0.01;
+};
+
+struct FileConfig {
+    std::string input_directory = "cases";
+    std::string input_file = "";
+    std::string output_directory = "output/time_stepper";
+    std::string output_prefix = "step";
+    bool write_initial_state = true;
+    bool write_outputs = true;
+};
+
 struct GeometryConfig {
     double particle_spacing = 0.02;
     double support_radius = 0.06;
@@ -64,6 +84,8 @@ struct LinearSolverConfig {
 
 struct SimulationConfig {
     TimeConfig time;
+    TimeStepControlConfig time_step;
+    FileConfig file;
     GeometryConfig geometry;
     PhysicalConfig physical;
     FreeSurfaceConfig free_surface;

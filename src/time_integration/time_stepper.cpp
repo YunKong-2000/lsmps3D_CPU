@@ -11,10 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <filesystem>
-#include <iomanip>
 #include <limits>
-#include <sstream>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -72,14 +69,20 @@ TimeStepDiagnostics buildDiagnostics(
     const SimulationConfig& config,
     const SimulationState& state,
     const PressurePoissonResult& pressure,
-    const CorrectionResult& correction) {
+    const CorrectionResult& correction,
+    const TimeStepDecision& time_step_decision,
+    double next_dt) {
     TimeStepDiagnostics diagnostics;
     diagnostics.step = state.current_step;
     diagnostics.time = state.current_time;
-    diagnostics.dt = config.time.dt;
+    diagnostics.dt = time_step_decision.dt;
+    diagnostics.next_dt = next_dt;
+    diagnostics.cfl_limited_dt = time_step_decision.cfl_limited_dt;
+    diagnostics.max_relative_velocity = time_step_decision.max_relative_velocity;
     diagnostics.max_velocity = maxFluidMagnitude(particles, particles.velocities());
     diagnostics.max_displacement = maxFluidMagnitude(particles, correction.displacement);
-    diagnostics.cfl_number = diagnostics.max_velocity * config.time.dt / config.geometry.particle_spacing;
+    diagnostics.cfl_number =
+        diagnostics.max_relative_velocity * diagnostics.dt / config.geometry.particle_spacing;
     diagnostics.pressure_converged = pressure.solve_info.converged;
     diagnostics.pressure_iterations = pressure.solve_info.iterations;
     diagnostics.pressure_residual = pressure.solve_info.final_residual_norm;
@@ -134,18 +137,13 @@ void updateSimulationState(SimulationState& state, const TimeStepDiagnostics& di
     state.mean_neighbor_count = diagnostics.mean_neighbor_count;
 }
 
-std::string formatStepTag(std::size_t output_index, std::size_t step) {
-    std::ostringstream stream;
-    stream << std::setfill('0') << std::setw(5) << output_index << "_step_" << step;
-    return stream.str();
-}
-
 }  // namespace
 
 TimeStepper::TimeStepper(SimulationConfig config, TimeStepperOptions options)
     : config_(std::move(config)),
       options_(std::move(options)),
-      next_output_time_(config_.time.output_interval) {
+      files_(config_.file),
+      time_control_(config_.time_step, config_.geometry.particle_spacing) {
     const std::vector<std::string> errors = config_.validate();
     if (!errors.empty()) {
         std::string message = "Invalid time-stepper configuration:";
@@ -166,7 +164,7 @@ const std::vector<TimeStepDiagnostics>& TimeStepper::history() const noexcept {
 
 void TimeStepper::writeCurrentState(const ParticleSet& particles, const std::string& tag) const {
     const VtkWriter writer;
-    writer.writeParticles(outputPath(tag), particles);
+    writer.writeParticles(files_.outputPath(tag), particles);
 }
 
 TimeStepDiagnostics TimeStepper::advanceOneStep(ParticleSet& particles) {
@@ -178,43 +176,52 @@ TimeStepDiagnostics TimeStepper::advanceOneStep(ParticleSet& particles) {
     TypedNeighborList neighbors = neighbor_search.buildTypedNeighborList(particles);
     neighbor_search.updateNeighborCounts(particles, neighbors);
 
+    const double max_relative_velocity = computeMaxRelativeVelocity(particles, neighbors);
+    const TimeStepDecision time_step_decision =
+        time_control_.chooseDt(state_.current_time, max_relative_velocity);
+    SimulationConfig step_config = config_;
+    step_config.time.dt = time_step_decision.dt;
+
     const FreeSurfaceDetector detector(config_.free_surface, config_.geometry.particle_spacing);
     const FreeSurfaceDiagnostics free_surface = detector.detect(particles, neighbors);
 
     const LsmpsMatrixSet matrices =
-        buildLsmpsMatrices(particles, neighbors, config_.geometry.support_radius, config_.lsmps);
+        buildLsmpsMatrices(particles, neighbors, step_config.geometry.support_radius, step_config.lsmps);
 
     const ProvisionalVelocityCalculator provisional_calculator;
     const ProvisionalVelocityResult provisional =
-        provisional_calculator.compute(particles, neighbors, matrices, config_);
+        provisional_calculator.compute(particles, neighbors, matrices, step_config);
 
     const PressurePoissonAssembler pressure_poisson;
     const PressurePoissonResult pressure =
-        pressure_poisson.solve(particles, neighbors, matrices, provisional, config_);
+        pressure_poisson.solve(particles, neighbors, matrices, provisional, step_config);
     if (!pressure.solved || (options_.fail_on_pressure_nonconvergence && !pressure.solve_info.converged)) {
         throw std::runtime_error("PPE solve failed or did not converge during time stepping");
     }
 
     const PressureCorrectionApplier correction_applier;
     const CorrectionResult correction =
-        correction_applier.apply(particles, neighbors, matrices, provisional, pressure, config_);
+        correction_applier.apply(particles, neighbors, matrices, provisional, pressure, step_config);
 
     particles.pressures() = pressure.pressure;
     particles.velocities() = correction.next_velocity;
     particles.positions() = correction.next_position;
 
     state_.current_step += 1;
-    state_.current_time += config_.time.dt;
+    state_.current_time += time_step_decision.dt;
+    time_control_.updateAfterStep(time_step_decision);
+    const TimeStepDecision next_decision =
+        time_control_.chooseDt(state_.current_time, computeMaxRelativeVelocity(particles, neighbors));
 
-    const TimeStepDiagnostics diagnostics = buildDiagnostics(particles, config_, state_, pressure, correction);
+    const TimeStepDiagnostics diagnostics =
+        buildDiagnostics(particles, config_, state_, pressure, correction, time_step_decision, next_decision.dt);
     updateSimulationState(state_, diagnostics);
     history_.push_back(diagnostics);
 
-    if (options_.write_outputs && shouldWriteOutput()) {
-        const std::string tag = formatStepTag(output_index_, state_.current_step);
+    if (config_.file.write_outputs && time_control_.shouldWriteOutput(state_.current_time)) {
         const VtkWriter writer;
         writer.writeParticles(
-            outputPath(tag),
+            files_.stepOutputPath(output_index_, state_.current_step),
             particles,
             {
                 {"free_surface_open_ratio", free_surface.open_ratio},
@@ -243,35 +250,42 @@ TimeStepDiagnostics TimeStepper::advanceOneStep(ParticleSet& particles) {
                 {"displacement", correction.displacement},
             });
         ++output_index_;
-        while (next_output_time_ <= state_.current_time + 0.5 * config_.time.dt) {
-            next_output_time_ += config_.time.output_interval;
-        }
+        time_control_.advanceOutputTime(state_.current_time);
     }
 
     return diagnostics;
 }
 
 std::vector<TimeStepDiagnostics> TimeStepper::run(ParticleSet& particles) {
-    if (options_.write_outputs && options_.write_initial_state) {
-        writeCurrentState(particles, "initial");
+    state_.current_time = config_.time_step.start_time;
+    if (config_.file.write_outputs && config_.file.write_initial_state) {
+        const VtkWriter writer;
+        writer.writeParticles(files_.initialOutputPath(), particles);
     }
 
-    while (state_.current_time + 0.5 * config_.time.dt < config_.time.end_time) {
+    while (!time_control_.reachedEndTime(state_.current_time)) {
         advanceOneStep(particles);
     }
 
     return history_;
 }
 
-bool TimeStepper::shouldWriteOutput() const {
-    return state_.current_time + 0.5 * config_.time.dt >= next_output_time_ ||
-           state_.current_time + 0.5 * config_.time.dt >= config_.time.end_time;
-}
-
-std::string TimeStepper::outputPath(const std::string& tag) const {
-    const std::filesystem::path directory(options_.output_directory);
-    const std::filesystem::path file = options_.output_prefix + "_" + tag + ".vtk";
-    return (directory / file).string();
+double TimeStepper::computeMaxRelativeVelocity(
+    const ParticleSet& particles,
+    const TypedNeighborList& neighbors) const {
+    double maximum = 0.0;
+    for (std::size_t i = 0; i < particles.size(); ++i) {
+        if (!particles.isFluid(i)) {
+            continue;
+        }
+        for (const std::size_t j : neighbors.fluid[i]) {
+            maximum = std::max(maximum, norm(particles.velocities()[i] - particles.velocities()[j]));
+        }
+        for (const std::size_t j : neighbors.wall[i]) {
+            maximum = std::max(maximum, norm(particles.velocities()[i] - particles.velocities()[j]));
+        }
+    }
+    return maximum;
 }
 
 }  // namespace lsmps

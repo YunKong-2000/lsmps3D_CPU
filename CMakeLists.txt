@@ -15,6 +15,7 @@ add_library(lsmps3d_core
     src/config/config_reader.cpp
     src/core/particle_set.cpp
     src/core/simulation_config.cpp
+    src/io/file_manager.cpp
     src/io/logger.cpp
     src/io/vtk_writer.cpp
     src/free_surface/free_surface_detector.cpp
@@ -26,6 +27,7 @@ add_library(lsmps3d_core
     src/correction/correction.cpp
     src/pressure_poisson/pressure_poisson.cpp
     src/provisional/provisional.cpp
+    src/time_integration/time_step_controller.cpp
     src/time_integration/time_stepper.cpp
 )
 
@@ -221,3 +223,25 @@ target_link_libraries(time_stepper_long_hydrostatic_test
 )
 
 add_test(NAME time_stepper_long_hydrostatic_test COMMAND time_stepper_long_hydrostatic_test)
+
+add_executable(time_step_controller_test
+    tests/time_step_controller_test.cpp
+)
+
+target_link_libraries(time_step_controller_test
+    PRIVATE
+        lsmps3d_core
+)
+
+add_test(NAME time_step_controller_test COMMAND time_step_controller_test)
+
+add_executable(file_manager_test
+    tests/file_manager_test.cpp
+)
+
+target_link_libraries(file_manager_test
+    PRIVATE
+        lsmps3d_core
+)
+
+add_test(NAME file_manager_test COMMAND file_manager_test)

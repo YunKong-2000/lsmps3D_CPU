@@ -25,9 +25,13 @@ double coordinate(double min_value, int index, double spacing) {
 }
 
 void logConfigSummary(const lsmps::Logger& logger, const lsmps::SimulationConfig& config) {
-    logger.info("dt = " + std::to_string(config.time.dt));
-    logger.info("end_time = " + std::to_string(config.time.end_time));
-    logger.info("output_interval = " + std::to_string(config.time.output_interval));
+    logger.info("initial_dt = " + std::to_string(config.time_step.initial_dt));
+    logger.info("min_dt = " + std::to_string(config.time_step.min_dt));
+    logger.info("max_dt = " + std::to_string(config.time_step.max_dt));
+    logger.info("cfl_number = " + std::to_string(config.time_step.cfl_number));
+    logger.info("start_time = " + std::to_string(config.time_step.start_time));
+    logger.info("end_time = " + std::to_string(config.time_step.end_time));
+    logger.info("output_interval = " + std::to_string(config.time_step.output_interval));
     logger.info("particle_spacing = " + std::to_string(config.geometry.particle_spacing));
     logger.info("support_radius = " + std::to_string(config.geometry.support_radius));
     logger.info("density = " + std::to_string(config.physical.density));
@@ -39,6 +43,16 @@ lsmps::SimulationConfig compactDemoConfig() {
     config.time.dt = 0.002;
     config.time.end_time = 0.02;
     config.time.output_interval = 0.01;
+    config.time_step.start_time = 0.0;
+    config.time_step.end_time = config.time.end_time;
+    config.time_step.initial_dt = config.time.dt;
+    config.time_step.min_dt = 0.0005;
+    config.time_step.max_dt = config.time.dt;
+    config.time_step.cfl_number = 0.2;
+    config.time_step.growth_factor = 1.05;
+    config.time_step.output_interval = config.time.output_interval;
+    config.file.output_directory = "output/main_hydrostatic";
+    config.file.output_prefix = "hydrostatic";
     config.geometry.particle_spacing = 0.2;
     config.geometry.support_radius = 3.1 * config.geometry.particle_spacing;
     config.geometry.domain_min = {0.0, 0.0, 0.0};
@@ -190,14 +204,10 @@ int main(int argc, char** argv) {
         lsmps::ParticleSet particles = createHydrostaticBoxParticles(config);
         logger.info("Created hydrostatic box particles: " + std::to_string(particles.size()));
 
-        lsmps::TimeStepperOptions options;
-        options.output_directory = "output/main_hydrostatic";
-        options.output_prefix = "hydrostatic";
-
-        lsmps::TimeStepper stepper(config, options);
+        lsmps::TimeStepper stepper(config);
         const std::vector<lsmps::TimeStepDiagnostics> history = stepper.run(particles);
         logDiagnostics(logger, history);
-        logger.info("Completed time integration. VTK output directory: " + options.output_directory);
+        logger.info("Completed time integration. VTK output directory: " + config.file.output_directory);
     } catch (const std::exception& error) {
         logger.error(error.what());
         return 1;
