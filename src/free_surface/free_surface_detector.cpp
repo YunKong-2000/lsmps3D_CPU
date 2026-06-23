@@ -44,6 +44,22 @@ bool validWallNormal(const Vector3& normal) {
     return normSquared(normal) > 0.0;
 }
 
+double weightedFluidNumberDensity(
+    const ParticleSet& particles,
+    const TypedNeighborList& neighbors,
+    std::size_t i,
+    double support_radius) {
+    double density = 0.0;
+    const Vector3& origin = particles.positions()[i];
+    for (const std::size_t fluid_index : neighbors.fluid[i]) {
+        const double distance = norm(particles.positions()[fluid_index] - origin);
+        if (distance > std::numeric_limits<double>::epsilon() && distance <= support_radius) {
+            density += std::max(0.0, std::pow(1.0 - distance / support_radius, 2));
+        }
+    }
+    return density;
+}
+
 }  // namespace
 
 FreeSurfaceDetector::FreeSurfaceDetector(const FreeSurfaceConfig& config, double particle_spacing)
@@ -79,6 +95,16 @@ FreeSurfaceDiagnostics FreeSurfaceDetector::detect(
     diagnostics.reason_code.assign(particle_count, 0);
 
     std::vector<FluidParticleState> primary_states(particle_count, FluidParticleState::Internal);
+    std::vector<double> number_density(particle_count, 0.0);
+    double reference_number_density = 0.0;
+    for (std::size_t i = 0; i < particle_count; ++i) {
+        if (particles.types()[i] != ParticleType::Fluid || !neighbors.wall[i].empty()) {
+            continue;
+        }
+        number_density[i] = weightedFluidNumberDensity(particles, neighbors, i, screen_radius_);
+        reference_number_density = std::max(reference_number_density, number_density[i]);
+    }
+    const double internal_density_threshold = config_.number_density_ratio * reference_number_density;
     const double total_area = std::max(
         std::numeric_limits<double>::epsilon(),
         [&]() {
@@ -91,6 +117,14 @@ FreeSurfaceDiagnostics FreeSurfaceDetector::detect(
 
     for (std::size_t i = 0; i < particle_count; ++i) {
         if (particles.types()[i] != ParticleType::Fluid) {
+            continue;
+        }
+
+        if (reference_number_density > std::numeric_limits<double>::epsilon() &&
+            neighbors.wall[i].empty() &&
+            neighbors.fluid[i].size() > config_.splash_max_fluid_neighbors &&
+            number_density[i] >= internal_density_threshold) {
+            diagnostics.reason_code[i] = 6;
             continue;
         }
 

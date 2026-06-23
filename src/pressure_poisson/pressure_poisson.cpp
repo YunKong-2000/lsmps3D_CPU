@@ -72,28 +72,23 @@ int pressureDofCount(const std::vector<int>& dof) {
     return count;
 }
 
-LsmpsBasisVector scalarRhs(
+void accumulateVelocityRhs(
     const ParticleSet& particles,
-    const TypedNeighborList& neighbors,
+    const ProvisionalVelocityResult& provisional,
     std::size_t i,
-    const std::vector<double>& values,
+    std::size_t j,
     double support_radius,
-    LsmpsKernelType kernel_type) {
-    LsmpsBasisVector rhs = LsmpsBasisVector::Zero();
-    const Vector3 position_i = particles.positions()[i];
-
-    for (const std::size_t j : neighbors.fluid[i]) {
-        const Vector3 offset = particles.positions()[j] - position_i;
-        const double weight = evaluateWeight(norm(offset), support_radius, kernel_type);
-        rhs.noalias() += weight * evaluateTypeABasis(offset, support_radius) * (values[j] - values[i]);
-    }
-    for (const std::size_t j : neighbors.wall[i]) {
-        const Vector3 offset = particles.positions()[j] - position_i;
-        const double weight = evaluateWeight(norm(offset), support_radius, kernel_type);
-        rhs.noalias() += weight * evaluateTypeABasis(offset, support_radius) * (values[j] - values[i]);
-    }
-
-    return rhs;
+    LsmpsKernelType kernel_type,
+    LsmpsBasisVector& rhs_x,
+    LsmpsBasisVector& rhs_y,
+    LsmpsBasisVector& rhs_z) {
+    const Vector3 offset = particles.positions()[j] - particles.positions()[i];
+    const double weight = evaluateWeight(norm(offset), support_radius, kernel_type);
+    const LsmpsBasisVector weighted_basis = weight * evaluateTypeABasis(offset, support_radius);
+    const Vector3 velocity_delta = provisional.provisional_velocity[j] - provisional.provisional_velocity[i];
+    rhs_x.noalias() += weighted_basis * velocity_delta.x;
+    rhs_y.noalias() += weighted_basis * velocity_delta.y;
+    rhs_z.noalias() += weighted_basis * velocity_delta.z;
 }
 
 double computeDivergence(
@@ -104,18 +99,20 @@ double computeDivergence(
     std::size_t i,
     double support_radius,
     LsmpsKernelType kernel_type) {
-    std::vector<double> ux(particles.size(), 0.0);
-    std::vector<double> uy(particles.size(), 0.0);
-    std::vector<double> uz(particles.size(), 0.0);
-    for (std::size_t k = 0; k < particles.size(); ++k) {
-        ux[k] = provisional.provisional_velocity[k].x;
-        uy[k] = provisional.provisional_velocity[k].y;
-        uz[k] = provisional.provisional_velocity[k].z;
+    LsmpsBasisVector rhs_x = LsmpsBasisVector::Zero();
+    LsmpsBasisVector rhs_y = LsmpsBasisVector::Zero();
+    LsmpsBasisVector rhs_z = LsmpsBasisVector::Zero();
+
+    for (const std::size_t j : neighbors.fluid[i]) {
+        accumulateVelocityRhs(particles, provisional, i, j, support_radius, kernel_type, rhs_x, rhs_y, rhs_z);
+    }
+    for (const std::size_t j : neighbors.wall[i]) {
+        accumulateVelocityRhs(particles, provisional, i, j, support_radius, kernel_type, rhs_x, rhs_y, rhs_z);
     }
 
-    const LsmpsBasisVector dx = regular.inverse_moment * scalarRhs(particles, neighbors, i, ux, support_radius, kernel_type);
-    const LsmpsBasisVector dy = regular.inverse_moment * scalarRhs(particles, neighbors, i, uy, support_radius, kernel_type);
-    const LsmpsBasisVector dz = regular.inverse_moment * scalarRhs(particles, neighbors, i, uz, support_radius, kernel_type);
+    const LsmpsBasisVector dx = regular.inverse_moment * rhs_x;
+    const LsmpsBasisVector dy = regular.inverse_moment * rhs_y;
+    const LsmpsBasisVector dz = regular.inverse_moment * rhs_z;
     return dx[0] / support_radius + dy[1] / support_radius + dz[2] / support_radius;
 }
 
@@ -145,6 +142,26 @@ bool isDirichletPressureParticle(const ParticleSet& particles, std::size_t i) {
 
 void setMatrixValue(Mat matrix, PetscInt row, PetscInt col, PetscScalar value) {
     checkPetsc(MatSetValues(matrix, 1, &row, 1, &col, &value, ADD_VALUES), "MatSetValues");
+}
+
+void setMatrixRow(
+    Mat matrix,
+    PetscInt row,
+    const std::vector<PetscInt>& columns,
+    const std::vector<PetscScalar>& values) {
+    if (columns.empty()) {
+        return;
+    }
+    checkPetsc(
+        MatSetValues(
+            matrix,
+            1,
+            &row,
+            static_cast<PetscInt>(columns.size()),
+            columns.data(),
+            values.data(),
+            ADD_VALUES),
+        "MatSetValues row");
 }
 
 void setVectorValue(Vec vector, PetscInt row, PetscScalar value, InsertMode mode = INSERT_VALUES) {
@@ -192,6 +209,8 @@ PressurePoissonResult PressurePoissonAssembler::solve(
     checkPetsc(VecDuplicate(rhs, &solution), "VecDuplicate solution");
 
     const double re = config.geometry.support_radius;
+    std::vector<PetscInt> row_columns;
+    std::vector<PetscScalar> row_values;
     for (std::size_t i = 0; i < particles.size(); ++i) {
         if (!particles.isFluid(i)) {
             continue;
@@ -220,6 +239,10 @@ PressurePoissonResult PressurePoissonAssembler::solve(
         result.diagnostics.divergence[i] = divergence;
 
         double diagonal = 0.0;
+        row_columns.clear();
+        row_values.clear();
+        row_columns.reserve(neighbors.fluid[i].size() + 1);
+        row_values.reserve(neighbors.fluid[i].size() + 1);
         const Vector3 position_i = particles.positions()[i];
         for (const std::size_t j : neighbors.fluid[i]) {
             if (!particles.isFluid(j)) {
@@ -231,7 +254,8 @@ PressurePoissonResult PressurePoissonAssembler::solve(
                 laplacianCoefficient(pressure_matrix, evaluateTypeABasis(offset, re), weight, re);
             const PetscInt col = result.diagnostics.pressure_dof[j];
             if (col >= 0) {
-                setMatrixValue(matrix, row, col, coefficient);
+                row_columns.push_back(col);
+                row_values.push_back(coefficient);
                 diagonal -= coefficient;
             }
         }
@@ -246,7 +270,9 @@ PressurePoissonResult PressurePoissonAssembler::solve(
         }
         result.diagnostics.wall_neumann_source[i] = wall_source;
 
-        setMatrixValue(matrix, row, row, diagonal);
+        row_columns.push_back(row);
+        row_values.push_back(diagonal);
+        setMatrixRow(matrix, row, row_columns, row_values);
         const double rhs_value = config.physical.density / config.time.dt * divergence - wall_source;
         setVectorValue(rhs, row, rhs_value);
         result.diagnostics.rhs[i] = rhs_value;

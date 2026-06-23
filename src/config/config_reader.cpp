@@ -236,6 +236,8 @@ void applyLsmpsConfig(LsmpsConfig& config, const std::string& key, const std::st
         config.condition_number_warning = parseDouble(name, value);
     } else if (key == "condition_number_failure") {
         config.condition_number_failure = parseDouble(name, value);
+    } else if (key == "diagnostics_enabled") {
+        config.diagnostics_enabled = parseBool(name, value);
     } else if (key == "kernel_type") {
         config.kernel_type = parseKernelType(name, value);
     } else {

@@ -12,9 +12,9 @@
 namespace {
 
 constexpr double length = 1.0;
-constexpr double height = 0.75;
+constexpr double height = 1.0;
 constexpr double width = 1.0;
-constexpr double water_height = 0.5;
+constexpr double water_height = 0.85;
 constexpr double spacing = 0.05;
 constexpr double density = 1000.0;
 
@@ -111,7 +111,7 @@ int main() {
         vtk_writer.writeParticles("output/hydrostatic_box/preprocess_particles.vtk", particles);
 
         std::cout << "Generated hydrostatic box particles\n";
-        std::cout << "  tank = 1.0m x 0.75m x 1.0m, water height = 0.5m\n";
+        std::cout << "  tank = 1.0m x 1.0m x 1.0m, water height = 0.85m\n";
         std::cout << "  fluid + wall total = " << particles.size() << '\n';
         std::cout << "  fluid file = cases/hydrostatic_box/fluid_particles.dat\n";
         std::cout << "  wall file = cases/hydrostatic_box/wall_particles.dat\n";

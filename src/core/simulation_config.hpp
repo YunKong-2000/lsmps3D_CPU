@@ -47,7 +47,7 @@ struct PhysicalConfig {
 
 struct FreeSurfaceConfig {
     double neighbor_count_ratio = 0.85;
-    double number_density_ratio = 0.90;
+    double number_density_ratio = 0.98;
     std::size_t near_surface_layers = 1;
     double screen_radius_factor = 3.1;
     double wall_patch_radius_factor = 0.85;
@@ -71,6 +71,7 @@ struct LsmpsConfig {
     double eigenvalue_tolerance = 1.0e-12;
     double condition_number_warning = 1.0e8;
     double condition_number_failure = 1.0e12;
+    bool diagnostics_enabled = true;
     LsmpsKernelType kernel_type = LsmpsKernelType::Linear;
 };
 

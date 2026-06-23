@@ -131,6 +131,26 @@ LsmpsInverseMatrix invertAndDiagnose(const RawBuildResult& raw_result, const Lsm
         return output;
     }
 
+    Eigen::FullPivLU<LsmpsMomentMatrix> lu(raw_result.raw);
+    if (!lu.isInvertible()) {
+        output.rank = static_cast<int>(lu.rank());
+        output.status = LsmpsMatrixStatus::RankDeficient;
+        return output;
+    }
+
+    output.inverse_moment = lu.inverse();
+    if (!output.inverse_moment.allFinite()) {
+        output.inverse_moment.setZero();
+        output.status = LsmpsMatrixStatus::InversionFailed;
+        return output;
+    }
+
+    if (!config.diagnostics_enabled) {
+        output.rank = lsmps_basis_size;
+        output.status = LsmpsMatrixStatus::Valid;
+        return output;
+    }
+
     Eigen::SelfAdjointEigenSolver<LsmpsMomentMatrix> eigen_solver(raw_result.raw);
     if (eigen_solver.info() != Eigen::Success) {
         output.status = LsmpsMatrixStatus::InversionFailed;
@@ -156,19 +176,7 @@ LsmpsInverseMatrix invertAndDiagnose(const RawBuildResult& raw_result, const Lsm
 
     if (output.rank < lsmps_basis_size || output.min_eigenvalue <= config.eigenvalue_tolerance) {
         output.status = LsmpsMatrixStatus::RankDeficient;
-        return output;
-    }
-
-    Eigen::FullPivLU<LsmpsMomentMatrix> lu(raw_result.raw);
-    if (!lu.isInvertible()) {
-        output.status = LsmpsMatrixStatus::InversionFailed;
-        return output;
-    }
-
-    output.inverse_moment = lu.inverse();
-    if (!output.inverse_moment.allFinite()) {
         output.inverse_moment.setZero();
-        output.status = LsmpsMatrixStatus::InversionFailed;
         return output;
     }
 
@@ -200,6 +208,11 @@ LsmpsMatrixSet buildLsmpsMatrices(
         const RawBuildResult regular_raw =
             buildRegularRaw(particles, neighbors, i, support_radius, config.kernel_type);
         matrices.particles[i].regular = invertAndDiagnose(regular_raw, config);
+
+        if (neighbors.wall[i].empty()) {
+            matrices.particles[i].pressure_neumann = matrices.particles[i].regular;
+            continue;
+        }
 
         const RawBuildResult pressure_raw =
             buildPressureRaw(particles, neighbors, i, support_radius, config.kernel_type);

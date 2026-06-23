@@ -71,6 +71,7 @@ int main() {
         eigenvalue_tolerance = 0.000000000001
         condition_number_warning = 1000000
         condition_number_failure = 1000000000
+        diagnostics_enabled = false
         kernel_type = linear
 
         [linear_solver]
@@ -121,6 +122,7 @@ int main() {
     assert(config.lsmps.eigenvalue_tolerance == 0.000000000001);
     assert(config.lsmps.condition_number_warning == 1000000.0);
     assert(config.lsmps.condition_number_failure == 1000000000.0);
+    assert(!config.lsmps.diagnostics_enabled);
     assert(config.lsmps.kernel_type == lsmps::LsmpsKernelType::Linear);
     assert(config.linear_solver.max_iterations == 500);
     assert(config.linear_solver.tolerance == 0.000001);
