@@ -198,3 +198,14 @@ target_link_libraries(hydrostatic_full_pipeline_test
 )
 
 add_test(NAME hydrostatic_full_pipeline_test COMMAND hydrostatic_full_pipeline_test)
+
+add_executable(correction_test
+    tests/correction_test.cpp
+)
+
+target_link_libraries(correction_test
+    PRIVATE
+        lsmps3d_core
+)
+
+add_test(NAME correction_test COMMAND correction_test)

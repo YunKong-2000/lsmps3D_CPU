@@ -381,17 +381,29 @@ cases/
 
 目标：在 PPE 得到压力后，计算压力梯度，对临时速度进行修正，并更新下一时间步粒子速度和位置。
 
-状态：未开始
+状态：已完成第一版
 
 任务：
 
-- [ ] 设计 `src/correction/correction.*` 模块接口。
-- [ ] 使用 LSMPS 常规或压力相关逆矩阵计算压力梯度。
-- [ ] 根据压力梯度修正临时速度，得到下一时间步速度。
-- [ ] 根据修正后速度更新粒子位置。
-- [ ] 处理自由面、近自由面、Splash 和壁面粒子在速度修正中的参与规则。
-- [ ] 输出压力梯度、速度修正量、位移量和最大速度诊断字段。
-- [ ] 记录 CFL、最大速度和压力残差。
+- [o] 设计 `src/correction/correction.*` 模块接口。
+- [o] 使用压力 Neumann 逆矩阵计算压力梯度。
+- [o] 根据压力梯度修正临时速度，得到下一时间步速度。
+- [o] 使用梯形积分更新粒子位置。
+- [o] 处理流体粒子和壁面粒子在速度修正中的参与规则。
+- [o] 输出压力梯度、速度修正量、位移量和速度诊断字段。
+- [ ] 在时间推进闭环中统一记录 CFL、最大速度和压力残差。
+
+当前实现说明：
+
+- Correction 模块位于 `src/correction/correction.*`。
+- `PressureCorrectionApplier::apply` 读取当前粒子、邻居列表、LSMPS 逆矩阵、Provisional 结果、PPE 压力结果和全局配置，返回 `CorrectionResult`，不直接修改 `ParticleSet`。
+- 压力梯度使用 `pressure_neumann.inverse_moment` 计算。流体邻居使用压力差贡献，壁面邻居使用压力 Neumann 条件贡献。
+- 速度修正采用 $\mathbf{u}^{n+1} = \mathbf{u}^{*} - \frac{\Delta t}{\rho}\nabla p$。
+- 位置更新采用梯形积分 $\mathbf{x}^{n+1} = \mathbf{x}^{n} + \frac{\Delta t}{2}(\mathbf{u}^{n} + \mathbf{u}^{n+1})$。
+- 壁面粒子不进行 correction 更新，状态记为 `NonFluid`。
+- 对矩阵不可用的流体粒子，当前保守使用临时速度推进，并将状态记为 `MatrixUnavailable`。
+- 测试 `correction_test` 串联邻域搜索、LSMPS 逆矩阵、Provisional、PPE 和 Correction，在 8x8x8 静水块加单层壁面算例中检查修正后速度和位移接近零。
+- 测试输出 `output/correction_hydrostatic_8x8x8.vtk`，包含 `pressure_gradient`、`velocity_correction`、`next_velocity`、`displacement` 及其模长，以及 `correction_status`。
 
 验收标准：
 
@@ -454,6 +466,7 @@ cases/
 | 2026-06-18 | 完成 PPE 求解器选型，确定使用 PETSc KSP、AIJ 稀疏矩阵和 GMRES/FGMRES 迭代路线 | 已完成 |
 | 2026-06-18 | 实现 PETSc 版 PPE 第一版装配与求解，完成 8x8x8 静水压力 VTK 验证 | 已完成 |
 | 2026-06-18 | 增加 1m 水箱、0.5m 水深标准静水全流程单步算例，串联邻域搜索、自由面识别、Provisional 和 PPE | 已完成 |
+| 2026-06-23 | 实现 Correction 压力修正模块，完成压力梯度、速度修正、梯形位置积分和 VTK 诊断输出 | 已完成 |
 
 ## 6. 近期优先级
 
@@ -466,8 +479,8 @@ cases/
 5. 实现邻域搜索。
 6. 紧接邻域搜索实现自由面识别。
 7. 基于临时速度和 LSMPS 逆矩阵模块进入 PPE 组装和压力求解。
-8. 开发 Correction 模块，使用压力梯度修正速度并更新粒子位置。
-9. 串联 Provisional、PPE 和 Correction，形成不可压缩时间推进闭环。
+8. 串联 Provisional、PPE 和 Correction，形成不可压缩时间推进闭环。
+9. 建立多时间步驱动器，统一更新时间步内的邻域搜索、自由面识别、LSMPS 逆矩阵、PPE 和 Correction 结果。
 
 这样可以尽早发现数据结构、参数传递、输出格式、邻域搜索和自由面判据中的问题，避免直接进入复杂流动求解后难以定位错误。
 
