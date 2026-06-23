@@ -14,6 +14,8 @@ public:
     const FileConfig& config() const noexcept;
 
     std::string inputPath() const;
+    std::string fluidParticlePath() const;
+    std::string wallParticlePath() const;
     std::string outputPath(const std::string& tag) const;
     std::string initialOutputPath() const;
     std::string stepOutputPath(std::size_t output_index, std::size_t step) const;

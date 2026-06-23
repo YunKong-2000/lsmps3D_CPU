@@ -18,45 +18,38 @@ std::vector<std::string> SimulationConfig::validate() const {
     if (time.dt <= 0.0) {
         errors.push_back("time.dt must be positive");
     }
-    if (time.end_time <= 0.0) {
-        errors.push_back("time.end_time must be positive");
+    if (time.start_time < 0.0) {
+        errors.push_back("time.start_time must be non-negative");
+    }
+    if (time.end_time <= time.start_time) {
+        errors.push_back("time.end_time must be larger than time.start_time");
+    }
+    if (time.initial_dt <= 0.0) {
+        errors.push_back("time.initial_dt must be positive");
+    }
+    if (time.min_dt <= 0.0) {
+        errors.push_back("time.min_dt must be positive");
+    }
+    if (time.max_dt <= 0.0) {
+        errors.push_back("time.max_dt must be positive");
+    }
+    if (time.min_dt > time.max_dt) {
+        errors.push_back("time.min_dt must not exceed time.max_dt");
+    }
+    if (time.initial_dt < time.min_dt || time.initial_dt > time.max_dt) {
+        errors.push_back("time.initial_dt must be inside [min_dt, max_dt]");
+    }
+    if (time.dt < time.min_dt || time.dt > time.max_dt) {
+        errors.push_back("time.dt must be inside [min_dt, max_dt]");
+    }
+    if (time.cfl_number <= 0.0) {
+        errors.push_back("time.cfl_number must be positive");
+    }
+    if (time.growth_factor < 1.0) {
+        errors.push_back("time.growth_factor must be at least 1");
     }
     if (time.output_interval <= 0.0) {
         errors.push_back("time.output_interval must be positive");
-    }
-    if (time.dt > time.end_time) {
-        errors.push_back("time.dt must not be larger than time.end_time");
-    }
-
-    if (time_step.start_time < 0.0) {
-        errors.push_back("time_step.start_time must be non-negative");
-    }
-    if (time_step.end_time <= time_step.start_time) {
-        errors.push_back("time_step.end_time must be larger than time_step.start_time");
-    }
-    if (time_step.initial_dt <= 0.0) {
-        errors.push_back("time_step.initial_dt must be positive");
-    }
-    if (time_step.min_dt <= 0.0) {
-        errors.push_back("time_step.min_dt must be positive");
-    }
-    if (time_step.max_dt <= 0.0) {
-        errors.push_back("time_step.max_dt must be positive");
-    }
-    if (time_step.min_dt > time_step.max_dt) {
-        errors.push_back("time_step.min_dt must not exceed time_step.max_dt");
-    }
-    if (time_step.initial_dt < time_step.min_dt || time_step.initial_dt > time_step.max_dt) {
-        errors.push_back("time_step.initial_dt must be inside [min_dt, max_dt]");
-    }
-    if (time_step.cfl_number <= 0.0) {
-        errors.push_back("time_step.cfl_number must be positive");
-    }
-    if (time_step.growth_factor < 1.0) {
-        errors.push_back("time_step.growth_factor must be at least 1");
-    }
-    if (time_step.output_interval <= 0.0) {
-        errors.push_back("time_step.output_interval must be positive");
     }
 
     if (file.output_directory.empty()) {

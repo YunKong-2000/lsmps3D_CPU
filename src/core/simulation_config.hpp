@@ -9,11 +9,6 @@ namespace lsmps {
 
 struct TimeConfig {
     double dt = 0.001;
-    double end_time = 1.0;
-    double output_interval = 0.01;
-};
-
-struct TimeStepControlConfig {
     double start_time = 0.0;
     double end_time = 1.0;
     double initial_dt = 0.001;
@@ -27,6 +22,8 @@ struct TimeStepControlConfig {
 struct FileConfig {
     std::string input_directory = "cases";
     std::string input_file = "";
+    std::string fluid_particle_file = "";
+    std::string wall_particle_file = "";
     std::string output_directory = "output/time_stepper";
     std::string output_prefix = "step";
     bool write_initial_state = true;
@@ -84,7 +81,6 @@ struct LinearSolverConfig {
 
 struct SimulationConfig {
     TimeConfig time;
-    TimeStepControlConfig time_step;
     FileConfig file;
     GeometryConfig geometry;
     PhysicalConfig physical;

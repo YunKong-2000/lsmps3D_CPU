@@ -18,11 +18,6 @@ int main() {
     const lsmps::SimulationConfig config = reader.readString(R"(
         # Time parameters
         [time]
-        dt = 0.005
-        end_time = 2.5
-        output_interval = 0.1
-
-        [time_step]
         start_time = 0.2
         end_time = 2.5
         initial_dt = 0.004
@@ -35,6 +30,8 @@ int main() {
         [file]
         input_directory = cases/input
         input_file = particles.vtk
+        fluid_particle_file = fluid_particles.dat
+        wall_particle_file = wall_particles.dat
         output_directory = output/config_test
         output_prefix = case
         write_initial_state = false
@@ -81,19 +78,19 @@ int main() {
         tolerance = 0.000001
     )");
 
-    assert(config.time.dt == 0.005);
+    assert(config.time.dt == 0.004);
     assert(config.time.end_time == 2.5);
-    assert(config.time.output_interval == 0.1);
-    assert(config.time_step.start_time == 0.2);
-    assert(config.time_step.end_time == 2.5);
-    assert(config.time_step.initial_dt == 0.004);
-    assert(config.time_step.min_dt == 0.0001);
-    assert(config.time_step.max_dt == 0.01);
-    assert(config.time_step.cfl_number == 0.25);
-    assert(config.time_step.growth_factor == 1.08);
-    assert(config.time_step.output_interval == 0.2);
+    assert(config.time.output_interval == 0.2);
+    assert(config.time.start_time == 0.2);
+    assert(config.time.initial_dt == 0.004);
+    assert(config.time.min_dt == 0.0001);
+    assert(config.time.max_dt == 0.01);
+    assert(config.time.cfl_number == 0.25);
+    assert(config.time.growth_factor == 1.08);
     assert(config.file.input_directory == "cases/input");
     assert(config.file.input_file == "particles.vtk");
+    assert(config.file.fluid_particle_file == "fluid_particles.dat");
+    assert(config.file.wall_particle_file == "wall_particles.dat");
     assert(config.file.output_directory == "output/config_test");
     assert(config.file.output_prefix == "case");
     assert(!config.file.write_initial_state);
@@ -176,13 +173,13 @@ int main() {
     }
     assert(rejected_bad_bool);
 
-    bool rejected_bad_time_step = false;
+    bool rejected_bad_time = false;
     try {
-        reader.readString("[time_step]\nmin_dt = 0.1\nmax_dt = 0.01\n");
+        reader.readString("[time]\nmin_dt = 0.1\nmax_dt = 0.01\n");
     } catch (const std::runtime_error&) {
-        rejected_bad_time_step = true;
+        rejected_bad_time = true;
     }
-    assert(rejected_bad_time_step);
+    assert(rejected_bad_time);
 
     return 0;
 }

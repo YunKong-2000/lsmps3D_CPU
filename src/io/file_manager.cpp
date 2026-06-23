@@ -27,7 +27,27 @@ std::string FileManager::inputPath() const {
     if (config_.input_file.empty()) {
         return {};
     }
-    const std::filesystem::path file(config_.input_file);
+    return (std::filesystem::path(config_.input_file).is_absolute() || config_.input_directory.empty())
+        ? std::filesystem::path(config_.input_file).string()
+        : (std::filesystem::path(config_.input_directory) / config_.input_file).string();
+}
+
+std::string FileManager::fluidParticlePath() const {
+    if (config_.fluid_particle_file.empty()) {
+        return {};
+    }
+    const std::filesystem::path file(config_.fluid_particle_file);
+    if (file.is_absolute() || config_.input_directory.empty()) {
+        return file.string();
+    }
+    return (std::filesystem::path(config_.input_directory) / file).string();
+}
+
+std::string FileManager::wallParticlePath() const {
+    if (config_.wall_particle_file.empty()) {
+        return {};
+    }
+    const std::filesystem::path file(config_.wall_particle_file);
     if (file.is_absolute() || config_.input_directory.empty()) {
         return file.string();
     }

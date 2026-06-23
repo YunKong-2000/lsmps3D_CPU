@@ -17,6 +17,7 @@ add_library(lsmps3d_core
     src/core/simulation_config.cpp
     src/io/file_manager.cpp
     src/io/logger.cpp
+    src/io/particle_file_io.cpp
     src/io/vtk_writer.cpp
     src/free_surface/free_surface_detector.cpp
     src/lsmps/lsmps_basis.cpp
@@ -53,6 +54,15 @@ add_executable(lsmps3d
 )
 
 target_link_libraries(lsmps3d
+    PRIVATE
+        lsmps3d_core
+)
+
+add_executable(hydrostatic_box_preprocess
+    cases/hydrostatic_box/preprocess_hydrostatic_box.cpp
+)
+
+target_link_libraries(hydrostatic_box_preprocess
     PRIVATE
         lsmps3d_core
 )
@@ -245,3 +255,14 @@ target_link_libraries(file_manager_test
 )
 
 add_test(NAME file_manager_test COMMAND file_manager_test)
+
+add_executable(particle_file_io_test
+    tests/particle_file_io_test.cpp
+)
+
+target_link_libraries(particle_file_io_test
+    PRIVATE
+        lsmps3d_core
+)
+
+add_test(NAME particle_file_io_test COMMAND particle_file_io_test)

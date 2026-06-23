@@ -4,7 +4,7 @@
 #include <cmath>
 
 int main() {
-    lsmps::TimeStepControlConfig config;
+    lsmps::TimeConfig config;
     config.start_time = 0.0;
     config.end_time = 1.0;
     config.initial_dt = 0.01;

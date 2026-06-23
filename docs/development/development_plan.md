@@ -432,16 +432,21 @@ cases/
 - Correction 结果会写回 `ParticleSet` 的压力、速度和位置，形成下一时间步输入。
 - `TimeStepDiagnostics` 记录当前步数、时间、最大速度、最大位移、CFL、邻居数统计、自由面状态数量、PPE 迭代次数和残差。
 - `TimeStepper::run` 支持按 `output_interval` 输出 VTK 序列。输出字段包含自由面诊断、LSMPS 矩阵状态、Provisional 诊断、PPE 诊断和 Correction 诊断。
-- 已增加独立时间步管理模块 `src/time_integration/time_step_controller.*`。时间步控制参数通过 INI `[time_step]` 分块读取，包括 `start_time`、`end_time`、`initial_dt`、`min_dt`、`max_dt`、`cfl_number`、`growth_factor` 和 `output_interval`。
+- 已增加独立时间步管理模块 `src/time_integration/time_step_controller.*`。时间步控制参数通过 INI `[time]` 分块读取，包括 `start_time`、`end_time`、`initial_dt`、`min_dt`、`max_dt`、`cfl_number`、`growth_factor` 和 `output_interval`。
 - 动态时间步当前主要基于 CFL 控制。每步先根据邻域内最大相对速度计算 `dt_cfl = cfl_number * particle_spacing / max_relative_velocity`，再与 `max_dt` 共同形成上限。若当前时间步小于上限，则按 `growth_factor` 指数增长；若超过上限，则强制截断。
 - 时间步控制器还会根据下一次输出时间和模拟结束时间截断当前步长，使输出时间和结束时间精确落点。
-- 旧 `[time]` 分块仍保留用于兼容现有 Provisional、PPE 和 Correction 接口。`TimeStepper` 每步会把控制器给出的当前 `dt` 写入局部 `SimulationConfig.time.dt` 后再调用物理模块。
+- `TimeStepper` 每步会把控制器给出的当前 `dt` 写入局部 `SimulationConfig.time.dt` 后再调用 Provisional、PPE 和 Correction 模块。配置文件不再使用单独的 `[time_step]` 分块，避免时间参数重复入口。
 - 已增加文件管理模块 `src/io/file_manager.*`，集中生成输入路径、初始输出路径和时间步输出路径。文件相关配置通过 INI `[file]` 分块读取，包括 `input_directory`、`input_file`、`output_directory`、`output_prefix`、`write_initial_state` 和 `write_outputs`。
 - 当前时间推进输出文件命名格式为 `<prefix>_initial.vtk` 和 `<prefix>_<output_index>_step_<step>.vtk`，输出目录由 `file.output_directory` 指定，`VtkWriter` 会自动创建目录。
+- 已增加粒子文件读写模块 `src/io/particle_file_io.*`。流体粒子文件格式为 `x y z vx vy vz pressure density`，壁面粒子文件格式为 `x y z vx vy vz pressure density nx ny nz`。
+- 主程序在 `[file]` 中配置 `fluid_particle_file` 和 `wall_particle_file` 时，会优先从前处理文件读取粒子；未配置粒子文件时才使用内置几何生成演示粒子。
 - PETSc 会话生命周期已从单次 PPE 求解内的局部对象调整为进程级单例，避免多时间步内重复 `PetscInitialize/PetscFinalize` 导致第二步求解失败。
 - 主程序 `lsmps3d [config_file]` 已从 smoke 输出改为可运行的静水箱时间推进入口；无配置文件时使用小型内置静水演示配置。
 - 测试 `time_stepper_long_hydrostatic_test` 使用 6x6x6 静水块加单层壁面，连续推进 10 步，检查 PPE 收敛、速度和 CFL 保持在近零水平。
 - 长程测试输出 `output/time_stepper_hydrostatic_long/`，主程序默认演示输出 `output/main_hydrostatic/`。
+- `cases/hydrostatic_box/preprocess_hydrostatic_box.cpp` 是独立编译的静水箱前处理程序，生成 1m x 0.75m x 1m 水箱、0.5m 水深、0.05m 粒子间距的流体粒子文件和壁面粒子文件。壁面粒子覆盖完整配置水箱壁面。
+- 当前时间步 VTK 输出已精简，仅保留基础粒子字段、自由面原因码、LSMPS 矩阵状态、Correction 状态、压力梯度/速度修正/位移及其模长。更详细的 PPE RHS、自由面面积比例和 Provisional 加速度等调试字段保留在模块测试输出中。
+- 当某个时间步写出 VTK 文件时，`TimeStepper` 会向终端打印该步各模块耗时，包括邻域搜索、时间步控制、自由面识别、LSMPS、Provisional、PPE、Correction、诊断整理、VTK 写出和总耗时。
 
 验收标准：
 
@@ -488,6 +493,7 @@ cases/
 | 2026-06-23 | 实现 Correction 压力修正模块，完成压力梯度、速度修正、梯形位置积分和 VTK 诊断输出 | 已完成 |
 | 2026-06-23 | 实现 TimeStepper 时间推进闭环，支持多时间步静水箱长程验证和连续 VTK 输出 | 已完成 |
 | 2026-06-23 | 实现 TimeStepController 动态时间步管理和 FileManager 文件路径管理，并接入 INI 配置 | 已完成 |
+| 2026-06-23 | 为 `cases/hydrostatic_box` 增加独立前处理程序、粒子文件读写和文件读入静水单步验证 | 已完成 |
 
 ## 6. 近期优先级
 

@@ -13,7 +13,7 @@ constexpr double time_epsilon = 1.0e-12;
 
 }  // namespace
 
-TimeStepController::TimeStepController(TimeStepControlConfig config, double particle_spacing)
+TimeStepController::TimeStepController(TimeConfig config, double particle_spacing)
     : config_(std::move(config)),
       particle_spacing_(particle_spacing),
       current_dt_(config_.initial_dt),
@@ -23,7 +23,7 @@ TimeStepController::TimeStepController(TimeStepControlConfig config, double part
     }
 }
 
-const TimeStepControlConfig& TimeStepController::config() const noexcept {
+const TimeConfig& TimeStepController::config() const noexcept {
     return config_;
 }
 

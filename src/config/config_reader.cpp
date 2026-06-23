@@ -92,7 +92,7 @@ std::string fullKey(const std::string& section, const std::string& key) {
 }
 
 bool isKnownSection(const std::string& section) {
-    return section == "time" || section == "time_step" || section == "file" ||
+    return section == "time" || section == "file" ||
            section == "geometry" || section == "physical" || section == "free_surface" ||
            section == "lsmps" || section == "linear_solver";
 }
@@ -101,23 +101,14 @@ void applyTimeConfig(TimeConfig& config, const std::string& key, const std::stri
     const std::string name = fullKey("time", key);
     if (key == "dt") {
         config.dt = parseDouble(name, value);
-    } else if (key == "end_time") {
-        config.end_time = parseDouble(name, value);
-    } else if (key == "output_interval") {
-        config.output_interval = parseDouble(name, value);
-    } else {
-        throw std::runtime_error("Unknown config key: " + name);
-    }
-}
-
-void applyTimeStepControlConfig(TimeStepControlConfig& config, const std::string& key, const std::string& value) {
-    const std::string name = fullKey("time_step", key);
-    if (key == "start_time") {
+        config.initial_dt = config.dt;
+    } else if (key == "start_time") {
         config.start_time = parseDouble(name, value);
     } else if (key == "end_time") {
         config.end_time = parseDouble(name, value);
     } else if (key == "initial_dt") {
         config.initial_dt = parseDouble(name, value);
+        config.dt = config.initial_dt;
     } else if (key == "min_dt") {
         config.min_dt = parseDouble(name, value);
     } else if (key == "max_dt") {
@@ -139,6 +130,10 @@ void applyFileConfig(FileConfig& config, const std::string& key, const std::stri
         config.input_directory = value;
     } else if (key == "input_file") {
         config.input_file = value;
+    } else if (key == "fluid_particle_file") {
+        config.fluid_particle_file = value;
+    } else if (key == "wall_particle_file") {
+        config.wall_particle_file = value;
     } else if (key == "output_directory") {
         config.output_directory = value;
     } else if (key == "output_prefix") {
@@ -266,8 +261,6 @@ void applySectionValue(
     const std::string& value) {
     if (section == "time") {
         applyTimeConfig(config.time, key, value);
-    } else if (section == "time_step") {
-        applyTimeStepControlConfig(config.time_step, key, value);
     } else if (section == "file") {
         applyFileConfig(config.file, key, value);
     } else if (section == "geometry") {

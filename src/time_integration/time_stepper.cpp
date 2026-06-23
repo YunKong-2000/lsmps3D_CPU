@@ -9,8 +9,10 @@
 #include "provisional/provisional.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
+#include <iostream>
 #include <limits>
 #include <stdexcept>
 #include <utility>
@@ -52,6 +54,41 @@ std::vector<double> vectorMagnitude(const std::vector<Vector3>& values) {
         result[i] = norm(values[i]);
     }
     return result;
+}
+
+using Clock = std::chrono::steady_clock;
+using TimePoint = Clock::time_point;
+
+double elapsedSeconds(const TimePoint& begin, const TimePoint& end) {
+    return std::chrono::duration<double>(end - begin).count();
+}
+
+struct StepTiming {
+    double neighbor = 0.0;
+    double time_control = 0.0;
+    double free_surface = 0.0;
+    double lsmps = 0.0;
+    double provisional = 0.0;
+    double pressure_poisson = 0.0;
+    double correction = 0.0;
+    double diagnostics = 0.0;
+    double vtk_output = 0.0;
+    double total = 0.0;
+};
+
+void printTiming(std::size_t step, double time, const StepTiming& timing) {
+    std::cout << "[timing] step=" << step
+              << " time=" << time
+              << " neighbor=" << timing.neighbor
+              << " time_control=" << timing.time_control
+              << " free_surface=" << timing.free_surface
+              << " lsmps=" << timing.lsmps
+              << " provisional=" << timing.provisional
+              << " ppe=" << timing.pressure_poisson
+              << " correction=" << timing.correction
+              << " diagnostics=" << timing.diagnostics
+              << " vtk=" << timing.vtk_output
+              << " total=" << timing.total << '\n';
 }
 
 double maxFluidMagnitude(const ParticleSet& particles, const std::vector<Vector3>& values) {
@@ -143,7 +180,7 @@ TimeStepper::TimeStepper(SimulationConfig config, TimeStepperOptions options)
     : config_(std::move(config)),
       options_(std::move(options)),
       files_(config_.file),
-      time_control_(config_.time_step, config_.geometry.particle_spacing) {
+      time_control_(config_.time, config_.geometry.particle_spacing) {
     const std::vector<std::string> errors = config_.validate();
     if (!errors.empty()) {
         std::string message = "Invalid time-stepper configuration:";
@@ -172,37 +209,62 @@ TimeStepDiagnostics TimeStepper::advanceOneStep(ParticleSet& particles) {
         throw std::runtime_error("TimeStepper requires a non-empty particle set");
     }
 
+    StepTiming timing;
+    const TimePoint step_begin = Clock::now();
+    TimePoint section_begin = step_begin;
+
     NeighborSearch neighbor_search(config_.geometry.support_radius, config_.geometry.domain_min);
     TypedNeighborList neighbors = neighbor_search.buildTypedNeighborList(particles);
     neighbor_search.updateNeighborCounts(particles, neighbors);
+    TimePoint section_end = Clock::now();
+    timing.neighbor = elapsedSeconds(section_begin, section_end);
 
+    section_begin = section_end;
     const double max_relative_velocity = computeMaxRelativeVelocity(particles, neighbors);
     const TimeStepDecision time_step_decision =
         time_control_.chooseDt(state_.current_time, max_relative_velocity);
     SimulationConfig step_config = config_;
     step_config.time.dt = time_step_decision.dt;
+    section_end = Clock::now();
+    timing.time_control = elapsedSeconds(section_begin, section_end);
 
+    section_begin = section_end;
     const FreeSurfaceDetector detector(config_.free_surface, config_.geometry.particle_spacing);
     const FreeSurfaceDiagnostics free_surface = detector.detect(particles, neighbors);
+    section_end = Clock::now();
+    timing.free_surface = elapsedSeconds(section_begin, section_end);
 
+    section_begin = section_end;
     const LsmpsMatrixSet matrices =
         buildLsmpsMatrices(particles, neighbors, step_config.geometry.support_radius, step_config.lsmps);
+    section_end = Clock::now();
+    timing.lsmps = elapsedSeconds(section_begin, section_end);
 
+    section_begin = section_end;
     const ProvisionalVelocityCalculator provisional_calculator;
     const ProvisionalVelocityResult provisional =
         provisional_calculator.compute(particles, neighbors, matrices, step_config);
+    section_end = Clock::now();
+    timing.provisional = elapsedSeconds(section_begin, section_end);
 
+    section_begin = section_end;
     const PressurePoissonAssembler pressure_poisson;
     const PressurePoissonResult pressure =
         pressure_poisson.solve(particles, neighbors, matrices, provisional, step_config);
     if (!pressure.solved || (options_.fail_on_pressure_nonconvergence && !pressure.solve_info.converged)) {
         throw std::runtime_error("PPE solve failed or did not converge during time stepping");
     }
+    section_end = Clock::now();
+    timing.pressure_poisson = elapsedSeconds(section_begin, section_end);
 
+    section_begin = section_end;
     const PressureCorrectionApplier correction_applier;
     const CorrectionResult correction =
         correction_applier.apply(particles, neighbors, matrices, provisional, pressure, step_config);
+    section_end = Clock::now();
+    timing.correction = elapsedSeconds(section_begin, section_end);
 
+    section_begin = section_end;
     particles.pressures() = pressure.pressure;
     particles.velocities() = correction.next_velocity;
     particles.positions() = correction.next_position;
@@ -217,47 +279,43 @@ TimeStepDiagnostics TimeStepper::advanceOneStep(ParticleSet& particles) {
         buildDiagnostics(particles, config_, state_, pressure, correction, time_step_decision, next_decision.dt);
     updateSimulationState(state_, diagnostics);
     history_.push_back(diagnostics);
+    section_end = Clock::now();
+    timing.diagnostics = elapsedSeconds(section_begin, section_end);
 
     if (config_.file.write_outputs && time_control_.shouldWriteOutput(state_.current_time)) {
+        section_begin = Clock::now();
         const VtkWriter writer;
         writer.writeParticles(
             files_.stepOutputPath(output_index_, state_.current_step),
             particles,
             {
-                {"free_surface_open_ratio", free_surface.open_ratio},
-                {"free_surface_cone_ratio", free_surface.cone_ratio},
-                {"free_surface_accessible_area_ratio", free_surface.accessible_area_ratio},
                 {"free_surface_reason_code", intFieldAsDouble(free_surface.reason_code)},
                 {"lsmps_regular_status", matrixStatusField(matrices, false)},
                 {"lsmps_pressure_neumann_status", matrixStatusField(matrices, true)},
-                {"provisional_status", enumFieldAsDouble(provisional.status)},
                 {"correction_status", enumFieldAsDouble(correction.status)},
-                {"ppe_rhs", pressure.diagnostics.rhs},
-                {"ppe_divergence", pressure.diagnostics.divergence},
-                {"ppe_wall_neumann_source", pressure.diagnostics.wall_neumann_source},
-                {"pressure_dof", intFieldAsDouble(pressure.diagnostics.pressure_dof)},
                 {"pressure_gradient_magnitude", vectorMagnitude(correction.pressure_gradient)},
                 {"velocity_correction_magnitude", vectorMagnitude(correction.velocity_correction)},
                 {"displacement_magnitude", vectorMagnitude(correction.displacement)},
             },
             {
                 {"provisional_velocity", provisional.provisional_velocity},
-                {"viscous_acceleration", provisional.viscous_acceleration},
-                {"body_acceleration", provisional.body_acceleration},
-                {"velocity_delta", provisional.velocity_delta},
                 {"pressure_gradient", correction.pressure_gradient},
                 {"velocity_correction", correction.velocity_correction},
                 {"displacement", correction.displacement},
             });
+        section_end = Clock::now();
+        timing.vtk_output = elapsedSeconds(section_begin, section_end);
         ++output_index_;
         time_control_.advanceOutputTime(state_.current_time);
+        timing.total = elapsedSeconds(step_begin, Clock::now());
+        printTiming(state_.current_step, state_.current_time, timing);
     }
 
     return diagnostics;
 }
 
 std::vector<TimeStepDiagnostics> TimeStepper::run(ParticleSet& particles) {
-    state_.current_time = config_.time_step.start_time;
+    state_.current_time = config_.time.start_time;
     if (config_.file.write_outputs && config_.file.write_initial_state) {
         const VtkWriter writer;
         writer.writeParticles(files_.initialOutputPath(), particles);

@@ -2,7 +2,9 @@
 #include "core/particle_set.hpp"
 #include "core/simulation_config.hpp"
 #include "core/vector3.hpp"
+#include "io/file_manager.hpp"
 #include "io/logger.hpp"
+#include "io/particle_file_io.hpp"
 #include "time_integration/time_stepper.hpp"
 
 #include <algorithm>
@@ -25,13 +27,13 @@ double coordinate(double min_value, int index, double spacing) {
 }
 
 void logConfigSummary(const lsmps::Logger& logger, const lsmps::SimulationConfig& config) {
-    logger.info("initial_dt = " + std::to_string(config.time_step.initial_dt));
-    logger.info("min_dt = " + std::to_string(config.time_step.min_dt));
-    logger.info("max_dt = " + std::to_string(config.time_step.max_dt));
-    logger.info("cfl_number = " + std::to_string(config.time_step.cfl_number));
-    logger.info("start_time = " + std::to_string(config.time_step.start_time));
-    logger.info("end_time = " + std::to_string(config.time_step.end_time));
-    logger.info("output_interval = " + std::to_string(config.time_step.output_interval));
+    logger.info("initial_dt = " + std::to_string(config.time.initial_dt));
+    logger.info("min_dt = " + std::to_string(config.time.min_dt));
+    logger.info("max_dt = " + std::to_string(config.time.max_dt));
+    logger.info("cfl_number = " + std::to_string(config.time.cfl_number));
+    logger.info("start_time = " + std::to_string(config.time.start_time));
+    logger.info("end_time = " + std::to_string(config.time.end_time));
+    logger.info("output_interval = " + std::to_string(config.time.output_interval));
     logger.info("particle_spacing = " + std::to_string(config.geometry.particle_spacing));
     logger.info("support_radius = " + std::to_string(config.geometry.support_radius));
     logger.info("density = " + std::to_string(config.physical.density));
@@ -41,16 +43,14 @@ void logConfigSummary(const lsmps::Logger& logger, const lsmps::SimulationConfig
 lsmps::SimulationConfig compactDemoConfig() {
     lsmps::SimulationConfig config;
     config.time.dt = 0.002;
+    config.time.start_time = 0.0;
     config.time.end_time = 0.02;
+    config.time.initial_dt = config.time.dt;
+    config.time.min_dt = 0.0005;
+    config.time.max_dt = config.time.dt;
+    config.time.cfl_number = 0.2;
+    config.time.growth_factor = 1.05;
     config.time.output_interval = 0.01;
-    config.time_step.start_time = 0.0;
-    config.time_step.end_time = config.time.end_time;
-    config.time_step.initial_dt = config.time.dt;
-    config.time_step.min_dt = 0.0005;
-    config.time_step.max_dt = config.time.dt;
-    config.time_step.cfl_number = 0.2;
-    config.time_step.growth_factor = 1.05;
-    config.time_step.output_interval = config.time.output_interval;
     config.file.output_directory = "output/main_hydrostatic";
     config.file.output_prefix = "hydrostatic";
     config.geometry.particle_spacing = 0.2;
@@ -165,6 +165,28 @@ lsmps::ParticleSet createHydrostaticBoxParticles(const lsmps::SimulationConfig& 
     return particles;
 }
 
+lsmps::ParticleSet loadOrCreateParticles(const lsmps::SimulationConfig& config, const lsmps::Logger& logger) {
+    const lsmps::FileManager files(config.file);
+    const std::string fluid_path = files.fluidParticlePath();
+    const std::string wall_path = files.wallParticlePath();
+    if (!fluid_path.empty() || !wall_path.empty()) {
+        if (fluid_path.empty() || wall_path.empty()) {
+            throw std::runtime_error("Both file.fluid_particle_file and file.wall_particle_file must be set");
+        }
+
+        lsmps::ParticleSet particles;
+        const lsmps::ParticleFileReader reader;
+        reader.readFluidParticles(fluid_path, particles);
+        reader.readWallParticles(wall_path, particles);
+        logger.info("Loaded fluid particle file: " + fluid_path);
+        logger.info("Loaded wall particle file: " + wall_path);
+        return particles;
+    }
+
+    logger.info("No particle files configured; generating hydrostatic box particles from geometry.");
+    return createHydrostaticBoxParticles(config);
+}
+
 void logDiagnostics(const lsmps::Logger& logger, const std::vector<lsmps::TimeStepDiagnostics>& history) {
     for (const lsmps::TimeStepDiagnostics& diagnostics : history) {
         std::ostringstream message;
@@ -201,7 +223,7 @@ int main(int argc, char** argv) {
         }
         logConfigSummary(logger, config);
 
-        lsmps::ParticleSet particles = createHydrostaticBoxParticles(config);
+        lsmps::ParticleSet particles = loadOrCreateParticles(config, logger);
         logger.info("Created hydrostatic box particles: " + std::to_string(particles.size()));
 
         lsmps::TimeStepper stepper(config);

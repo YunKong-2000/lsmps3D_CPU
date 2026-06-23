@@ -17,9 +17,9 @@ struct TimeStepDecision {
 
 class TimeStepController {
 public:
-    explicit TimeStepController(TimeStepControlConfig config = {}, double particle_spacing = 1.0);
+    explicit TimeStepController(TimeConfig config = {}, double particle_spacing = 1.0);
 
-    const TimeStepControlConfig& config() const noexcept;
+    const TimeConfig& config() const noexcept;
     double currentDt() const noexcept;
 
     TimeStepDecision chooseDt(double current_time, double max_relative_velocity);
@@ -29,7 +29,7 @@ public:
     void advanceOutputTime(double current_time);
 
 private:
-    TimeStepControlConfig config_;
+    TimeConfig config_;
     double particle_spacing_ = 1.0;
     double current_dt_ = 0.0;
     double next_output_time_ = 0.0;
