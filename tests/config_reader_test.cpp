@@ -36,6 +36,7 @@ int main() {
         output_prefix = case
         write_initial_state = false
         write_outputs = true
+        write_wall_each_output = false
 
         [geometry]
         particle_spacing = 0.025
@@ -96,6 +97,7 @@ int main() {
     assert(config.file.output_prefix == "case");
     assert(!config.file.write_initial_state);
     assert(config.file.write_outputs);
+    assert(!config.file.write_wall_each_output);
     assert(config.geometry.particle_spacing == 0.025);
     assert(config.geometry.support_radius == 0.075);
     assert(config.geometry.domain_min.x == -1.0);

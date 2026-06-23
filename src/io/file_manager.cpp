@@ -8,9 +8,9 @@
 namespace lsmps {
 namespace {
 
-std::string formatStepTag(std::size_t output_index, std::size_t step) {
+std::string formatOutputIndex(std::size_t output_index) {
     std::ostringstream stream;
-    stream << std::setfill('0') << std::setw(5) << output_index << "_step_" << step;
+    stream << std::setfill('0') << std::setw(5) << output_index;
     return stream.str();
 }
 
@@ -65,7 +65,16 @@ std::string FileManager::initialOutputPath() const {
 }
 
 std::string FileManager::stepOutputPath(std::size_t output_index, std::size_t step) const {
-    return outputPath(formatStepTag(output_index, step));
+    (void)step;
+    return outputPath(formatOutputIndex(output_index));
+}
+
+std::string FileManager::fluidOutputPath(std::size_t output_index) const {
+    return outputPath("fluid_" + formatOutputIndex(output_index));
+}
+
+std::string FileManager::wallOutputPath(std::size_t output_index) const {
+    return outputPath("wall_" + formatOutputIndex(output_index));
 }
 
 }  // namespace lsmps

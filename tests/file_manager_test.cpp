@@ -17,7 +17,9 @@ int main() {
     assert(manager.fluidParticlePath() == "cases/demo/fluid.dat");
     assert(manager.wallParticlePath() == "cases/demo/wall.dat");
     assert(manager.initialOutputPath() == "output/demo/case_initial.vtk");
-    assert(manager.stepOutputPath(3, 42) == "output/demo/case_00003_step_42.vtk");
+    assert(manager.stepOutputPath(3, 42) == "output/demo/case_00003.vtk");
+    assert(manager.fluidOutputPath(3) == "output/demo/case_fluid_00003.vtk");
+    assert(manager.wallOutputPath(3) == "output/demo/case_wall_00003.vtk");
 
     config.input_file = "/tmp/absolute.vtk";
     const lsmps::FileManager absolute_manager(config);

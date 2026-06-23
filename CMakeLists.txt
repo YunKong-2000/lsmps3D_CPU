@@ -67,6 +67,15 @@ target_link_libraries(hydrostatic_box_preprocess
         lsmps3d_core
 )
 
+add_executable(dam_break_3d_preprocess
+    cases/dam_break_3d/preprocess_dam_break_3d.cpp
+)
+
+target_link_libraries(dam_break_3d_preprocess
+    PRIVATE
+        lsmps3d_core
+)
+
 enable_testing()
 
 add_executable(smoke_test

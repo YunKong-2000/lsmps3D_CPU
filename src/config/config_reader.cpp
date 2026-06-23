@@ -142,6 +142,8 @@ void applyFileConfig(FileConfig& config, const std::string& key, const std::stri
         config.write_initial_state = parseBool(name, value);
     } else if (key == "write_outputs") {
         config.write_outputs = parseBool(name, value);
+    } else if (key == "write_wall_each_output") {
+        config.write_wall_each_output = parseBool(name, value);
     } else {
         throw std::runtime_error("Unknown config key: " + name);
     }

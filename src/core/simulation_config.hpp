@@ -28,6 +28,7 @@ struct FileConfig {
     std::string output_prefix = "step";
     bool write_initial_state = true;
     bool write_outputs = true;
+    bool write_wall_each_output = true;
 };
 
 struct GeometryConfig {

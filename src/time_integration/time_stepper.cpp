@@ -21,41 +21,6 @@
 namespace lsmps {
 namespace {
 
-template <typename Enum>
-std::vector<double> enumFieldAsDouble(const std::vector<Enum>& values) {
-    std::vector<double> result(values.size(), 0.0);
-    for (std::size_t i = 0; i < values.size(); ++i) {
-        result[i] = static_cast<double>(static_cast<int>(values[i]));
-    }
-    return result;
-}
-
-std::vector<double> intFieldAsDouble(const std::vector<int>& values) {
-    std::vector<double> result(values.size(), 0.0);
-    for (std::size_t i = 0; i < values.size(); ++i) {
-        result[i] = static_cast<double>(values[i]);
-    }
-    return result;
-}
-
-std::vector<double> matrixStatusField(const LsmpsMatrixSet& matrices, bool pressure_neumann) {
-    std::vector<double> result(matrices.particles.size(), 0.0);
-    for (std::size_t i = 0; i < matrices.particles.size(); ++i) {
-        const LsmpsInverseMatrix& matrix =
-            pressure_neumann ? matrices.particles[i].pressure_neumann : matrices.particles[i].regular;
-        result[i] = static_cast<double>(static_cast<int>(matrix.status));
-    }
-    return result;
-}
-
-std::vector<double> vectorMagnitude(const std::vector<Vector3>& values) {
-    std::vector<double> result(values.size(), 0.0);
-    for (std::size_t i = 0; i < values.size(); ++i) {
-        result[i] = norm(values[i]);
-    }
-    return result;
-}
-
 using Clock = std::chrono::steady_clock;
 using TimePoint = Clock::time_point;
 
@@ -89,6 +54,43 @@ void printTiming(std::size_t step, double time, const StepTiming& timing) {
               << " diagnostics=" << timing.diagnostics
               << " vtk=" << timing.vtk_output
               << " total=" << timing.total << '\n';
+}
+
+void writeSplitParticleOutput(
+    const FileManager& files,
+    const ParticleSet& particles,
+    std::size_t output_index,
+    bool write_wall,
+    const std::vector<Vector3>& pressure_gradient = {}) {
+    const VtkWriter writer;
+    VtkBuiltInFieldOptions fluid_fields;
+    fluid_fields.particle_type = false;
+    fluid_fields.fluid_neighbor_count = false;
+    fluid_fields.wall_neighbor_count = false;
+    VtkBuiltInFieldOptions wall_fields;
+    wall_fields.particle_type = false;
+    wall_fields.fluid_state = false;
+    wall_fields.fluid_neighbor_count = false;
+    wall_fields.wall_neighbor_count = false;
+    const std::vector<VtkVectorField> vector_fields =
+        pressure_gradient.empty() ? std::vector<VtkVectorField>{}
+                                  : std::vector<VtkVectorField>{{"pressure_gradient", pressure_gradient}};
+    writer.writeParticlesByType(
+        files.fluidOutputPath(output_index),
+        particles,
+        ParticleType::Fluid,
+        fluid_fields,
+        {},
+        vector_fields);
+    if (write_wall) {
+        writer.writeParticlesByType(
+            files.wallOutputPath(output_index),
+            particles,
+            ParticleType::Wall,
+            wall_fields,
+            {},
+            {});
+    }
 }
 
 double maxFluidMagnitude(const ParticleSet& particles, const std::vector<Vector3>& values) {
@@ -200,8 +202,8 @@ const std::vector<TimeStepDiagnostics>& TimeStepper::history() const noexcept {
 }
 
 void TimeStepper::writeCurrentState(const ParticleSet& particles, const std::string& tag) const {
-    const VtkWriter writer;
-    writer.writeParticles(files_.outputPath(tag), particles);
+    (void)tag;
+    writeSplitParticleOutput(files_, particles, output_index_, true);
 }
 
 TimeStepDiagnostics TimeStepper::advanceOneStep(ParticleSet& particles) {
@@ -284,25 +286,12 @@ TimeStepDiagnostics TimeStepper::advanceOneStep(ParticleSet& particles) {
 
     if (config_.file.write_outputs && time_control_.shouldWriteOutput(state_.current_time)) {
         section_begin = Clock::now();
-        const VtkWriter writer;
-        writer.writeParticles(
-            files_.stepOutputPath(output_index_, state_.current_step),
+        writeSplitParticleOutput(
+            files_,
             particles,
-            {
-                {"free_surface_reason_code", intFieldAsDouble(free_surface.reason_code)},
-                {"lsmps_regular_status", matrixStatusField(matrices, false)},
-                {"lsmps_pressure_neumann_status", matrixStatusField(matrices, true)},
-                {"correction_status", enumFieldAsDouble(correction.status)},
-                {"pressure_gradient_magnitude", vectorMagnitude(correction.pressure_gradient)},
-                {"velocity_correction_magnitude", vectorMagnitude(correction.velocity_correction)},
-                {"displacement_magnitude", vectorMagnitude(correction.displacement)},
-            },
-            {
-                {"provisional_velocity", provisional.provisional_velocity},
-                {"pressure_gradient", correction.pressure_gradient},
-                {"velocity_correction", correction.velocity_correction},
-                {"displacement", correction.displacement},
-            });
+            output_index_,
+            config_.file.write_wall_each_output,
+            correction.pressure_gradient);
         section_end = Clock::now();
         timing.vtk_output = elapsedSeconds(section_begin, section_end);
         ++output_index_;
@@ -317,8 +306,8 @@ TimeStepDiagnostics TimeStepper::advanceOneStep(ParticleSet& particles) {
 std::vector<TimeStepDiagnostics> TimeStepper::run(ParticleSet& particles) {
     state_.current_time = config_.time.start_time;
     if (config_.file.write_outputs && config_.file.write_initial_state) {
-        const VtkWriter writer;
-        writer.writeParticles(files_.initialOutputPath(), particles);
+        writeSplitParticleOutput(files_, particles, output_index_, true);
+        ++output_index_;
     }
 
     while (!time_control_.reachedEndTime(state_.current_time)) {

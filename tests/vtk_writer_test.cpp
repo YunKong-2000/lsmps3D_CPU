@@ -63,6 +63,35 @@ int main() {
     assert(contains(output, "SCALARS diagnostic_scalar double 1\n"));
     assert(contains(output, "VECTORS diagnostic_vector double\n"));
 
+    const std::string fluid_path = "vtk_writer_fluid_subset_test_output.vtk";
+    writer.writeParticlesByType(fluid_path, particles, lsmps::ParticleType::Fluid);
+    const std::string fluid_output = readFile(fluid_path);
+    assert(contains(fluid_output, "POINTS 1 double\n"));
+    assert(contains(fluid_output, "SCALARS particle_type int 1\nLOOKUP_TABLE default\n0\n"));
+    assert(contains(fluid_output, "SCALARS pressure double 1\nLOOKUP_TABLE default\n10\n"));
+
+    const std::string wall_path = "vtk_writer_wall_subset_test_output.vtk";
+    writer.writeParticlesByType(wall_path, particles, lsmps::ParticleType::Wall);
+    const std::string wall_output = readFile(wall_path);
+    assert(contains(wall_output, "POINTS 1 double\n"));
+    assert(contains(wall_output, "SCALARS particle_type int 1\nLOOKUP_TABLE default\n1\n"));
+    assert(contains(wall_output, "SCALARS pressure double 1\nLOOKUP_TABLE default\n20\n"));
+
+    lsmps::VtkBuiltInFieldOptions compact_fields;
+    compact_fields.particle_type = false;
+    compact_fields.fluid_neighbor_count = false;
+    compact_fields.wall_neighbor_count = false;
+    const std::string compact_path = "vtk_writer_compact_subset_test_output.vtk";
+    writer.writeParticlesByType(compact_path, particles, lsmps::ParticleType::Fluid, compact_fields);
+    const std::string compact_output = readFile(compact_path);
+    assert(contains(compact_output, "VECTORS velocity double\n"));
+    assert(contains(compact_output, "SCALARS pressure double 1\n"));
+    assert(contains(compact_output, "SCALARS fluid_state int 1\n"));
+    assert(contains(compact_output, "SCALARS neighbor_count int 1\n"));
+    assert(!contains(compact_output, "SCALARS particle_type int 1\n"));
+    assert(!contains(compact_output, "SCALARS fluid_neighbor_count int 1\n"));
+    assert(!contains(compact_output, "SCALARS wall_neighbor_count int 1\n"));
+
     bool rejected_bad_size = false;
     try {
         writer.writeParticles("bad_vtk_writer_test_output.vtk", particles, {{"bad_scalar", {1.0}}});

@@ -19,6 +19,8 @@ public:
     std::string outputPath(const std::string& tag) const;
     std::string initialOutputPath() const;
     std::string stepOutputPath(std::size_t output_index, std::size_t step) const;
+    std::string fluidOutputPath(std::size_t output_index) const;
+    std::string wallOutputPath(std::size_t output_index) const;
 
 private:
     FileConfig config_;
