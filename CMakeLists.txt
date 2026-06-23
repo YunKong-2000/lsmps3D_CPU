@@ -26,6 +26,7 @@ add_library(lsmps3d_core
     src/correction/correction.cpp
     src/pressure_poisson/pressure_poisson.cpp
     src/provisional/provisional.cpp
+    src/time_integration/time_stepper.cpp
 )
 
 target_include_directories(lsmps3d_core
@@ -209,3 +210,14 @@ target_link_libraries(correction_test
 )
 
 add_test(NAME correction_test COMMAND correction_test)
+
+add_executable(time_stepper_long_hydrostatic_test
+    tests/time_stepper_long_hydrostatic_test.cpp
+)
+
+target_link_libraries(time_stepper_long_hydrostatic_test
+    PRIVATE
+        lsmps3d_core
+)
+
+add_test(NAME time_stepper_long_hydrostatic_test COMMAND time_stepper_long_hydrostatic_test)

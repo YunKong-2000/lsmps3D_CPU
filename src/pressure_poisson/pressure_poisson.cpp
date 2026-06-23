@@ -40,6 +40,11 @@ private:
     bool owns_session_ = false;
 };
 
+PetscSession& petscSession() {
+    static PetscSession session;
+    return session;
+}
+
 void checkPetsc(PetscErrorCode code, const char* operation) {
     if (code != PETSC_SUCCESS) {
         throw std::runtime_error(std::string("PETSc operation failed: ") + operation);
@@ -158,7 +163,7 @@ PressurePoissonResult PressurePoissonAssembler::solve(
         throw std::runtime_error("PressurePoissonAssembler requires computed provisional velocities");
     }
 
-    PetscSession petsc_session;
+    (void)petscSession();
 
     PressurePoissonResult result;
     result.pressure = particles.pressures();

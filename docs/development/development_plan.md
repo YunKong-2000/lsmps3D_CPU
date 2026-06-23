@@ -415,14 +415,32 @@ cases/
 
 目标：串联 Provisional、PPE 和 Correction，完成预测、压力求解、速度修正和位置更新的基本闭环。
 
-状态：未开始
+状态：已完成第一版
 
 任务：
 
-- [ ] 串联临时速度计算、PPE 装配求解和压力修正模块。
-- [ ] 每个时间步更新邻域搜索、自由面识别和 LSMPS 逆矩阵。
-- [ ] 管理时间步、输出间隔和诊断日志。
-- [ ] 输出 CFL、最大速度、压力残差和自由面粒子数量。
+- [o] 串联临时速度计算、PPE 装配求解和压力修正模块。
+- [o] 每个时间步更新邻域搜索、自由面识别和 LSMPS 逆矩阵。
+- [o] 管理时间步、输出间隔和诊断日志。
+- [o] 输出 CFL、最大速度、压力残差和自由面粒子数量。
+
+当前实现说明：
+
+- 时间推进模块位于 `src/time_integration/time_stepper.*`。
+- `TimeStepper::advanceOneStep` 按顺序执行邻域搜索、自由面识别、LSMPS 逆矩阵构造、Provisional、PPE 和 Correction。
+- 每个时间步都会根据更新后的位置重建邻域、自由面状态和 LSMPS 逆矩阵，不复用上一时刻的空间关系。
+- Correction 结果会写回 `ParticleSet` 的压力、速度和位置，形成下一时间步输入。
+- `TimeStepDiagnostics` 记录当前步数、时间、最大速度、最大位移、CFL、邻居数统计、自由面状态数量、PPE 迭代次数和残差。
+- `TimeStepper::run` 支持按 `output_interval` 输出 VTK 序列。输出字段包含自由面诊断、LSMPS 矩阵状态、Provisional 诊断、PPE 诊断和 Correction 诊断。
+- 当前第一版时间推进使用固定时间步，时间步长来自 `SimulationConfig.time.dt`。`TimeStepDiagnostics.cfl_number` 目前只作为诊断输出，不会反向调整下一步 `dt`。
+- 当前还没有动态时间步控制模块。后续应增加独立的时间步控制器，综合 CFL 限制、黏性稳定限制、体力/重力限制、单步最大位移限制、`dt_min/dt_max` 和时间步增长倍率限制。
+- 当前结果输出由 `TimeStepperOptions` 和 `SimulationConfig.time.output_interval` 共同控制。`output_interval` 可通过 INI 的 `[time]` 分块配置，输出目录、文件前缀、是否输出初始状态、是否关闭输出等仍通过代码中的 `TimeStepperOptions` 设置。
+- 当前时间推进输出文件命名格式为 `<prefix>_initial.vtk` 和 `<prefix>_<output_index>_step_<step>.vtk`，输出目录由 `TimeStepperOptions.output_directory` 指定，`VtkWriter` 会自动创建目录。
+- 当前尚未建立 `[output]` 配置分块。后续应将 `output_directory`、`output_prefix`、`write_initial_state`、`write_outputs`、输出字段级别、VTK legacy/VTU 格式选择等接入统一配置文件。
+- PETSc 会话生命周期已从单次 PPE 求解内的局部对象调整为进程级单例，避免多时间步内重复 `PetscInitialize/PetscFinalize` 导致第二步求解失败。
+- 主程序 `lsmps3d [config_file]` 已从 smoke 输出改为可运行的静水箱时间推进入口；无配置文件时使用小型内置静水演示配置。
+- 测试 `time_stepper_long_hydrostatic_test` 使用 6x6x6 静水块加单层壁面，连续推进 10 步，检查 PPE 收敛、速度和 CFL 保持在近零水平。
+- 长程测试输出 `output/time_stepper_hydrostatic_long/`，主程序默认演示输出 `output/main_hydrostatic/`。
 
 验收标准：
 
@@ -467,6 +485,7 @@ cases/
 | 2026-06-18 | 实现 PETSc 版 PPE 第一版装配与求解，完成 8x8x8 静水压力 VTK 验证 | 已完成 |
 | 2026-06-18 | 增加 1m 水箱、0.5m 水深标准静水全流程单步算例，串联邻域搜索、自由面识别、Provisional 和 PPE | 已完成 |
 | 2026-06-23 | 实现 Correction 压力修正模块，完成压力梯度、速度修正、梯形位置积分和 VTK 诊断输出 | 已完成 |
+| 2026-06-23 | 实现 TimeStepper 时间推进闭环，支持多时间步静水箱长程验证和连续 VTK 输出 | 已完成 |
 
 ## 6. 近期优先级
 
@@ -479,8 +498,9 @@ cases/
 5. 实现邻域搜索。
 6. 紧接邻域搜索实现自由面识别。
 7. 基于临时速度和 LSMPS 逆矩阵模块进入 PPE 组装和压力求解。
-8. 串联 Provisional、PPE 和 Correction，形成不可压缩时间推进闭环。
-9. 建立多时间步驱动器，统一更新时间步内的邻域搜索、自由面识别、LSMPS 逆矩阵、PPE 和 Correction 结果。
+8. 增加运行期稳定性控制，包括动态时间步、CFL 限制、粒子越界检查和失败步诊断输出。
+9. 增加输出配置模块，将输出目录、文件前缀、输出开关、初始状态输出和输出格式选择接入 INI。
+10. 基于 TimeStepper 进入基础自由面算例开发，例如三维水箱扰动或三维溃坝短程算例。
 
 这样可以尽早发现数据结构、参数传递、输出格式、邻域搜索和自由面判据中的问题，避免直接进入复杂流动求解后难以定位错误。
 
@@ -492,6 +512,8 @@ cases/
 - VTK 格式：建议先支持 VTK legacy ASCII，后续再扩展二进制或 VTU。
 - 配置文件格式：第一阶段采用 INI 分块格式，支持注释和三维向量；后续如算例复杂度提升，可再评估 JSON 或 YAML。
 - 单元测试框架：可选择 Catch2、GoogleTest，或先用简单测试可执行文件。
+- 动态时间步：当前未实现。建议新增 `time_step_control` 或 `time_integration/time_step_controller` 模块，由上一时间步诊断量和物理参数计算下一步 `dt`。
+- 输出控制：当前只有 `time.output_interval` 来自 INI，其余输出选项仍在 `TimeStepperOptions` 中硬编码设置。建议新增 `[output]` 配置分块并接入 `SimulationConfig`。
 
 ## 8. 设计保留意见
 
