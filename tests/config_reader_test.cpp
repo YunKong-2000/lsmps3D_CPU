@@ -78,6 +78,11 @@ int main() {
         [linear_solver]
         max_iterations = 500
         tolerance = 0.000001
+
+        [particle_shifting]
+        enabled = true
+        max_displacement_factor = 0.04
+        min_distance_factor = 0.65
     )");
 
     assert(config.time.dt == 0.004);
@@ -128,6 +133,9 @@ int main() {
     assert(config.lsmps.kernel_type == lsmps::LsmpsKernelType::Linear);
     assert(config.linear_solver.max_iterations == 500);
     assert(config.linear_solver.tolerance == 0.000001);
+    assert(config.particle_shifting.enabled);
+    assert(config.particle_shifting.max_displacement_factor == 0.04);
+    assert(config.particle_shifting.min_distance_factor == 0.65);
 
     bool rejected_invalid_value = false;
     try {

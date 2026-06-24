@@ -94,7 +94,7 @@ std::string fullKey(const std::string& section, const std::string& key) {
 bool isKnownSection(const std::string& section) {
     return section == "time" || section == "file" ||
            section == "geometry" || section == "physical" || section == "free_surface" ||
-           section == "lsmps" || section == "linear_solver";
+           section == "lsmps" || section == "linear_solver" || section == "particle_shifting";
 }
 
 void applyTimeConfig(TimeConfig& config, const std::string& key, const std::string& value) {
@@ -258,6 +258,19 @@ void applyLinearSolverConfig(LinearSolverConfig& config, const std::string& key,
     }
 }
 
+void applyParticleShiftingConfig(ParticleShiftingConfig& config, const std::string& key, const std::string& value) {
+    const std::string name = fullKey("particle_shifting", key);
+    if (key == "enabled") {
+        config.enabled = parseBool(name, value);
+    } else if (key == "max_displacement_factor") {
+        config.max_displacement_factor = parseDouble(name, value);
+    } else if (key == "min_distance_factor") {
+        config.min_distance_factor = parseDouble(name, value);
+    } else {
+        throw std::runtime_error("Unknown config key: " + name);
+    }
+}
+
 void applySectionValue(
     SimulationConfig& config,
     const std::string& section,
@@ -277,6 +290,8 @@ void applySectionValue(
         applyLsmpsConfig(config.lsmps, key, value);
     } else if (section == "linear_solver") {
         applyLinearSolverConfig(config.linear_solver, key, value);
+    } else if (section == "particle_shifting") {
+        applyParticleShiftingConfig(config.particle_shifting, key, value);
     } else {
         throw std::runtime_error("Unknown config section: " + section);
     }

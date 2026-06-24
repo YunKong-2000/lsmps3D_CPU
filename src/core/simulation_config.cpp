@@ -142,6 +142,13 @@ std::vector<std::string> SimulationConfig::validate() const {
         errors.push_back("linear_solver.tolerance must be positive");
     }
 
+    if (particle_shifting.max_displacement_factor <= 0.0) {
+        errors.push_back("particle_shifting.max_displacement_factor must be positive");
+    }
+    if (particle_shifting.min_distance_factor <= 0.0) {
+        errors.push_back("particle_shifting.min_distance_factor must be positive");
+    }
+
     return errors;
 }
 

@@ -1,10 +1,12 @@
 #include "time_integration/time_stepper.hpp"
 
 #include "correction/correction.hpp"
+#include "diagnostics/particle_distribution_diagnostics.hpp"
 #include "free_surface/free_surface_detector.hpp"
 #include "io/vtk_writer.hpp"
 #include "lsmps/lsmps_matrices.hpp"
 #include "neighbor/neighbor_search.hpp"
+#include "particle_shifting/particle_shifter.hpp"
 #include "pressure_poisson/pressure_poisson.hpp"
 #include "provisional/provisional.hpp"
 
@@ -36,6 +38,7 @@ struct StepTiming {
     double provisional = 0.0;
     double pressure_poisson = 0.0;
     double correction = 0.0;
+    double particle_shifting = 0.0;
     double diagnostics = 0.0;
     double vtk_output = 0.0;
     double total = 0.0;
@@ -51,6 +54,7 @@ void printTiming(std::size_t step, double time, const StepTiming& timing) {
               << " provisional=" << timing.provisional
               << " ppe=" << timing.pressure_poisson
               << " correction=" << timing.correction
+              << " particle_shifting=" << timing.particle_shifting
               << " diagnostics=" << timing.diagnostics
               << " vtk=" << timing.vtk_output
               << " total=" << timing.total << '\n';
@@ -61,7 +65,10 @@ void writeSplitParticleOutput(
     const ParticleSet& particles,
     std::size_t output_index,
     bool write_wall,
-    const std::vector<Vector3>& pressure_gradient = {}) {
+    const std::vector<Vector3>& pressure_gradient = {},
+    const ParticleDistributionDiagnostics* distribution = nullptr,
+    const std::vector<double>& correction_status = {},
+    const ParticleShiftResult* particle_shift = nullptr) {
     const VtkWriter writer;
     VtkBuiltInFieldOptions fluid_fields;
     fluid_fields.particle_type = false;
@@ -72,15 +79,47 @@ void writeSplitParticleOutput(
     wall_fields.fluid_state = false;
     wall_fields.fluid_neighbor_count = false;
     wall_fields.wall_neighbor_count = false;
-    const std::vector<VtkVectorField> vector_fields =
-        pressure_gradient.empty() ? std::vector<VtkVectorField>{}
-                                  : std::vector<VtkVectorField>{{"pressure_gradient", pressure_gradient}};
+    std::vector<VtkVectorField> vector_fields;
+    if (!pressure_gradient.empty()) {
+        vector_fields.push_back({"pressure_gradient", pressure_gradient});
+    }
+    if (particle_shift != nullptr && particle_shift->applied) {
+        vector_fields.push_back({"particle_shift", particle_shift->displacement});
+    }
+    std::vector<VtkScalarField> scalar_fields;
+    if (distribution != nullptr) {
+        scalar_fields = {
+            {"nearest_fluid_distance", distribution->nearest_fluid_distance},
+            {"max_fluid_neighbor_distance", distribution->max_fluid_neighbor_distance},
+            {"mean_fluid_neighbor_distance", distribution->mean_fluid_neighbor_distance},
+            {"number_density", distribution->number_density},
+            {"number_density_ratio", distribution->number_density_ratio},
+            {"x_positive_neighbor_count", distribution->x_positive_neighbor_count},
+            {"x_negative_neighbor_count", distribution->x_negative_neighbor_count},
+            {"y_positive_neighbor_count", distribution->y_positive_neighbor_count},
+            {"y_negative_neighbor_count", distribution->y_negative_neighbor_count},
+            {"z_positive_neighbor_count", distribution->z_positive_neighbor_count},
+            {"z_negative_neighbor_count", distribution->z_negative_neighbor_count},
+            {"directional_coverage_score", distribution->directional_coverage_score},
+            {"geometry_min_eigenvalue", distribution->geometry_min_eigenvalue},
+            {"geometry_max_eigenvalue", distribution->geometry_max_eigenvalue},
+            {"geometry_condition_number", distribution->geometry_condition_number},
+        };
+    }
+    if (!correction_status.empty()) {
+        scalar_fields.push_back({"correction_status", correction_status});
+    }
+    if (particle_shift != nullptr && particle_shift->applied) {
+        scalar_fields.push_back({"particle_shift_magnitude", particle_shift->magnitude});
+        scalar_fields.push_back({"particle_shift_limited", particle_shift->limited});
+        scalar_fields.push_back({"particle_shift_repulsion_active", particle_shift->repulsion_active});
+    }
     writer.writeParticlesByType(
         files.fluidOutputPath(output_index),
         particles,
         ParticleType::Fluid,
         fluid_fields,
-        {},
+        scalar_fields,
         vector_fields);
     if (write_wall) {
         writer.writeParticlesByType(
@@ -101,6 +140,14 @@ double maxFluidMagnitude(const ParticleSet& particles, const std::vector<Vector3
         }
     }
     return maximum;
+}
+
+std::vector<double> correctionStatusField(const CorrectionResult& correction) {
+    std::vector<double> result(correction.status.size(), 0.0);
+    for (std::size_t i = 0; i < correction.status.size(); ++i) {
+        result[i] = static_cast<double>(static_cast<int>(correction.status[i]));
+    }
+    return result;
 }
 
 TimeStepDiagnostics buildDiagnostics(
@@ -218,6 +265,8 @@ TimeStepDiagnostics TimeStepper::advanceOneStep(ParticleSet& particles) {
     NeighborSearch neighbor_search(config_.geometry.support_radius, config_.geometry.domain_min);
     TypedNeighborList neighbors = neighbor_search.buildTypedNeighborList(particles);
     neighbor_search.updateNeighborCounts(particles, neighbors);
+    const ParticleDistributionDiagnostics distribution_diagnostics =
+        computeParticleDistributionDiagnostics(particles, neighbors, config_.geometry, config_.lsmps.kernel_type);
     TimePoint section_end = Clock::now();
     timing.neighbor = elapsedSeconds(section_begin, section_end);
 
@@ -270,7 +319,14 @@ TimeStepDiagnostics TimeStepper::advanceOneStep(ParticleSet& particles) {
     particles.pressures() = pressure.pressure;
     particles.velocities() = correction.next_velocity;
     particles.positions() = correction.next_position;
+    const ParticleShifter particle_shifter;
+    const ParticleShiftResult particle_shift =
+        particle_shifter.compute(particles, neighbors, config_);
+    particle_shifter.apply(particles, particle_shift);
+    section_end = Clock::now();
+    timing.particle_shifting = elapsedSeconds(section_begin, section_end);
 
+    section_begin = section_end;
     state_.current_step += 1;
     state_.current_time += time_step_decision.dt;
     time_control_.updateAfterStep(time_step_decision);
@@ -291,7 +347,10 @@ TimeStepDiagnostics TimeStepper::advanceOneStep(ParticleSet& particles) {
             particles,
             output_index_,
             config_.file.write_wall_each_output,
-            correction.pressure_gradient);
+            correction.pressure_gradient,
+            &distribution_diagnostics,
+            correctionStatusField(correction),
+            &particle_shift);
         section_end = Clock::now();
         timing.vtk_output = elapsedSeconds(section_begin, section_end);
         ++output_index_;

@@ -19,12 +19,14 @@ add_library(lsmps3d_core
     src/io/logger.cpp
     src/io/particle_file_io.cpp
     src/io/vtk_writer.cpp
+    src/diagnostics/particle_distribution_diagnostics.cpp
     src/free_surface/free_surface_detector.cpp
     src/lsmps/lsmps_basis.cpp
     src/lsmps/lsmps_matrices.cpp
     src/lsmps/weight_function.cpp
     src/neighbor/cell_linked_list.cpp
     src/neighbor/neighbor_search.cpp
+    src/particle_shifting/particle_shifter.cpp
     src/correction/correction.cpp
     src/pressure_poisson/pressure_poisson.cpp
     src/provisional/provisional.cpp
@@ -143,6 +145,28 @@ target_link_libraries(neighbor_search_large_case_test
 )
 
 add_test(NAME neighbor_search_large_case_test COMMAND neighbor_search_large_case_test)
+
+add_executable(particle_distribution_diagnostics_test
+    tests/particle_distribution_diagnostics_test.cpp
+)
+
+target_link_libraries(particle_distribution_diagnostics_test
+    PRIVATE
+        lsmps3d_core
+)
+
+add_test(NAME particle_distribution_diagnostics_test COMMAND particle_distribution_diagnostics_test)
+
+add_executable(particle_shifter_test
+    tests/particle_shifter_test.cpp
+)
+
+target_link_libraries(particle_shifter_test
+    PRIVATE
+        lsmps3d_core
+)
+
+add_test(NAME particle_shifter_test COMMAND particle_shifter_test)
 
 add_executable(free_surface_detector_test
     tests/free_surface_detector_test.cpp

@@ -81,6 +81,12 @@ struct LinearSolverConfig {
     double tolerance = 1.0e-10;
 };
 
+struct ParticleShiftingConfig {
+    bool enabled = false;
+    double max_displacement_factor = 0.05;
+    double min_distance_factor = 0.70;
+};
+
 struct SimulationConfig {
     TimeConfig time;
     FileConfig file;
@@ -89,6 +95,7 @@ struct SimulationConfig {
     FreeSurfaceConfig free_surface;
     LsmpsConfig lsmps;
     LinearSolverConfig linear_solver;
+    ParticleShiftingConfig particle_shifting;
 
     std::vector<std::string> validate() const;
 };
